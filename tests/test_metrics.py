@@ -47,6 +47,20 @@ def test_ceiling_mae_is_zero(rows):
     assert analyze.metrics(rows, CEILING)[CEILING]["mae"] == 0.0
 
 
+def test_shortlist_takes_top_n_and_breaks_ties_by_doi():
+    means = {"a": 0.9, "b": 0.5, "c": 0.5, "d": 0.1}
+    assert analyze.shortlist(means, 3) == {"a", "b", "c"}
+    assert analyze.shortlist(means, 2) == {"a", "b"}  # b before c on DOI order
+
+
+def test_top10_counts_overlap_with_the_ceilings_shortlist(rows, monkeypatch):
+    """Ceiling ranks a > c > b; the challenger ranks b = a > c, so a top-2 overlaps on a."""
+    monkeypatch.setattr(analyze, "SHORTLIST", 2)
+    m = analyze.metrics(rows, CEILING)
+    assert m[CEILING]["top10"] == 2
+    assert m["m"]["top10"] == 1
+
+
 def test_coverage_counts_parseable_scores(rows):
     m = analyze.metrics(rows, CEILING)["m"]
     assert m["cov"] == pytest.approx(100 * 4 / 6)
@@ -131,7 +145,7 @@ def test_results_table_roundtrip(tmp_path, rows):
     m = analyze.metrics(rows, CEILING)
     analyze.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
-    assert csv[0].startswith("label,cov,strict,violations,sigma,mae,latency_s,cost_usd")
+    assert csv[0].startswith("label,cov,strict,violations,sigma,mae,top10,latency_s,cost_usd")
     assert json.dumps(m)  # serializable
 
 

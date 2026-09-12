@@ -6,6 +6,9 @@ Metrics, per model config:
   violations  off-lane preprints scored >= 0.5 (a "wrong-field" call)
   sigma       mean over preprints of the std dev across the 3 repeats (repeatability)
   mae         mean over preprints of |model mean - ceiling mean| (agreement with the ceiling)
+  top10       of the ceiling's 10 highest-scoring preprints, how many are in the model's own
+              top 10. The decision the triage step actually makes, which a compressed score
+              distribution can hide from MAE.
   latency_s   mean wall-clock seconds per call
   cost_usd    mean OpenRouter-reported cost per call that returned
 """
@@ -28,11 +31,13 @@ COLUMNS = (
     "violations",
     "sigma",
     "mae",
+    "top10",
     "latency_s",
     "cost_usd",
     "n_calls",
 )
 VIOLATION_AT = 0.5
+SHORTLIST = 10
 
 
 def load_rows(results: Path, preprints: Path) -> list[dict]:
@@ -49,6 +54,11 @@ def _item_means(by_item: dict) -> dict[str, float]:
     return {doi: st.mean(s) for doi, runs in by_item.items() if (s := _scores(runs))}
 
 
+def shortlist(means: dict[str, float], n: int) -> set[str]:
+    """The n highest-scoring preprints; DOI order breaks ties so it is deterministic."""
+    return {d for d, _ in sorted(means.items(), key=lambda kv: (-kv[1], kv[0]))[:n]}
+
+
 def _one(by_item: dict, ceiling_means: dict) -> dict:
     runs = [r for rs in by_item.values() for r in rs]
     scored = [r for r in runs if r.get("fit_score") is not None]
@@ -56,6 +66,8 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
     maes = [abs(m - ceiling_means[d]) for d, m in means.items() if d in ceiling_means]
     sig = [st.stdev(s) for rs in by_item.values() if len(s := _scores(rs)) >= 2]
     costs = [c for r in runs if (c := r.get("cost_usd")) is not None]
+    both = (shortlist(means, SHORTLIST), shortlist(ceiling_means, SHORTLIST))
+    top = len(both[0] & both[1])
     return {
         "cov": 100 * len(scored) / len(runs),
         "strict": 100 * sum(bool(r.get("strict_json")) for r in scored) / len(scored)
@@ -66,6 +78,7 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
         ),
         "sigma": st.mean(sig) if sig else math.nan,
         "mae": st.mean(maes) if maes else math.nan,
+        "top10": top,
         "latency_s": st.mean([r.get("latency_s", 0.0) for r in runs]),
         "cost_usd": st.mean(costs) if costs else math.nan,
         "n_calls": len(runs),
@@ -93,12 +106,16 @@ def write_csv(m: dict, path: Path) -> None:
 
 
 def write_md(m: dict, path: Path) -> None:
-    md = ["| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling | latency s | $/call |"]
-    md.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+    cols = "| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling |"
+    md = [
+        f"{cols} top-{SHORTLIST} | latency s | $/call |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
     for k, r in m.items():
         md.append(
             f"| {k} | {r['cov']:.1f} | {r['strict']:.1f} | {r['violations']} | {r['sigma']:.3f} "
-            f"| {r['mae']:.3f} | {r['latency_s']:.2f} | {r['cost_usd']:.5f} |"
+            f"| {r['mae']:.3f} | {r['top10']}/{SHORTLIST} | {r['latency_s']:.2f} "
+            f"| {r['cost_usd']:.5f} |"
         )
     path.write_text("\n".join(md) + "\n")
 
