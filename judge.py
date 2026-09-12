@@ -42,8 +42,11 @@ def build_messages(item: dict, profile: str) -> list[dict]:
 
 def reasoning_body(level: str) -> dict:
     """OpenRouter `reasoning` param (verified 2026-09-11): {"enabled": false} switches thinking
-    off, {"effort": "low"|"medium"|"high"} turns it up. Omitting the key leaves it to the provider
-    default, which for DeepSeek V4 Flash means ON."""
+    off, {"effort": "low"|"medium"|"high"} turns it up. "default" omits the key and takes the
+    provider default (DeepSeek V4 Flash: ON). Gemini 3.5 Flash-Lite rejects enabled=false with
+    HTTP 400 "Reasoning is mandatory for this endpoint", so it can only run at default."""
+    if level == "default":
+        return {}
     if level == "off":
         return {"reasoning": {"enabled": False}}
     return {"reasoning": {"effort": level}}

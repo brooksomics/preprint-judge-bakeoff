@@ -25,14 +25,15 @@ import judge
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 CEILING = "anthropic/claude-sonnet-5"
-# (model id, reasoning). "off" sends {"enabled": false}; "low"/"medium" send {"effort": ...}.
+# (model id, reasoning). "off" sends {"enabled": false}; "low"/"medium" send {"effort": ...};
+# "default" omits the key (for models that refuse to switch reasoning off).
 MODELS = [
     (CEILING, "off"),
     ("anthropic/claude-haiku-4.5", "off"),
     ("minimax/minimax-m3", "off"),
     ("minimax/minimax-m3", "low"),
     ("xiaomi/mimo-v2.5", "off"),
-    ("google/gemini-3.5-flash-lite", "off"),
+    ("google/gemini-3.5-flash-lite", "default"),  # refuses enabled=false; 0 reasoning tok anyway
     ("deepseek/deepseek-v4-flash-0731", "off"),
     ("deepseek/deepseek-v4-flash-0731", "low"),
     ("deepseek/deepseek-v4-flash-0731", "medium"),
@@ -41,7 +42,7 @@ MODELS = [
     # released after the August roster (OpenRouter catalog scan 2026-09-11)
     ("deepseek/deepseek-v4.1-flash", "off"),
     ("qwen/qwen3.8-flash", "off"),
-    ("z-ai/glm-5.3-flash", "off"),
+    ("z-ai/glm-5.3-flash", "default"),  # refuses enabled=false too
     ("inception/mercury-2.5", "off"),
 ]
 MAX_TOKENS = 4096
@@ -53,7 +54,7 @@ PROFILE = judge.load_profile()
 
 
 def label_of(model: str, level: str) -> str:
-    return model if level == "off" else f"{model}@{level}"
+    return model if level in ("off", "default") else f"{model}@{level}"
 
 
 def _post_once(req: urllib.request.Request) -> tuple[dict | None, str | None, bool]:

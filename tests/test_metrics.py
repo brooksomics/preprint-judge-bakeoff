@@ -101,6 +101,7 @@ def test_stratify_round_robins_across_categories_and_dedupes_doi():
 def test_reasoning_body_shapes():
     assert judge.reasoning_body("off") == {"reasoning": {"enabled": False}}
     assert judge.reasoning_body("low") == {"reasoning": {"effort": "low"}}
+    assert judge.reasoning_body("default") == {}
 
 
 def test_results_table_roundtrip(tmp_path, rows):

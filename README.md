@@ -73,7 +73,10 @@ already exist, so a crashed or budget-stopped run picks up where it left off.
 - **Reasoning is off unless the row says otherwise.** OpenRouter's `reasoning`
   parameter: `{"enabled": false}` switches thinking off; `{"effort": "low"|"medium"}`
   turns it up. Some models (DeepSeek V4 Flash) default to ON when the key is omitted,
-  so the harness always sends it.
+  so the harness always sends it. Two models refuse the off switch with HTTP 400
+  "Reasoning is mandatory for this endpoint": Gemini 3.5 Flash-Lite (which then reports
+  0 reasoning tokens anyway) and GLM 5.3 Flash (which does think). Those two run at
+  provider default, marked `"default"` in the roster.
 - **Per-call timeout is 240 s.** A judge that needs more than four minutes for one
   abstract is not a judge; timeouts count against coverage.
 - **max_tokens is 4096 for every call.** Reasoning tokens are billed as completion
