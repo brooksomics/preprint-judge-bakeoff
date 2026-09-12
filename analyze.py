@@ -59,25 +59,31 @@ def shortlist(means: dict[str, float], n: int) -> set[str]:
     return {d for d, _ in sorted(means.items(), key=lambda kv: (-kv[1], kv[0]))[:n]}
 
 
+def _pct(hits: int, total: int) -> float:
+    return 100 * hits / total if total else math.nan
+
+
+def _agreement(means: dict, ceiling_means: dict) -> tuple[float, int]:
+    """(MAE, top-N overlap) against the ceiling's per-preprint means."""
+    maes = [abs(m - ceiling_means[d]) for d, m in means.items() if d in ceiling_means]
+    top = shortlist(means, SHORTLIST) & shortlist(ceiling_means, SHORTLIST)
+    return (st.mean(maes) if maes else math.nan), len(top)
+
+
 def _one(by_item: dict, ceiling_means: dict) -> dict:
     runs = [r for rs in by_item.values() for r in rs]
     scored = [r for r in runs if r.get("fit_score") is not None]
     means = _item_means(by_item)
-    maes = [abs(m - ceiling_means[d]) for d, m in means.items() if d in ceiling_means]
+    mae, top = _agreement(means, ceiling_means)
     sig = [st.stdev(s) for rs in by_item.values() if len(s := _scores(rs)) >= 2]
     costs = [c for r in runs if (c := r.get("cost_usd")) is not None]
-    both = (shortlist(means, SHORTLIST), shortlist(ceiling_means, SHORTLIST))
-    top = len(both[0] & both[1])
+    off = [r for r in scored if r["lane"] == "off"]
     return {
         "cov": 100 * len(scored) / len(runs),
-        "strict": 100 * sum(bool(r.get("strict_json")) for r in scored) / len(scored)
-        if scored
-        else math.nan,
-        "violations": sum(
-            1 for r in scored if r["lane"] == "off" and r["fit_score"] >= VIOLATION_AT
-        ),
+        "strict": _pct(sum(bool(r.get("strict_json")) for r in scored), len(scored)),
+        "violations": sum(1 for r in off if r["fit_score"] >= VIOLATION_AT),
         "sigma": st.mean(sig) if sig else math.nan,
-        "mae": st.mean(maes) if maes else math.nan,
+        "mae": mae,
         "top10": top,
         "latency_s": st.mean([r.get("latency_s", 0.0) for r in runs]),
         "cost_usd": st.mean(costs) if costs else math.nan,
@@ -126,6 +132,23 @@ def write_tables(m: dict, out: Path) -> None:
     write_md(m, out / "results.md")
 
 
+def provider_detail(rows: list[dict], floor: float = 100.0) -> list[str]:
+    """Coverage per (label, provider). The same model id routes to several providers on
+    OpenRouter and they do not all honor the same parameters, so a coverage hole is often one
+    provider rather than one model."""
+    by: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for r in rows:
+        by[(r["label"], r.get("provider") or "none")].append(r)
+    out = []
+    for (label, prov), rs in sorted(by.items()):
+        cov = 100 * sum(r.get("fit_score") is not None for r in rs) / len(rs)
+        rtok = [t for r in rs if (t := r.get("reasoning_tokens")) is not None]
+        thinking = f", mean {st.mean(rtok):.0f} reasoning tok" if rtok and st.mean(rtok) else ""
+        if cov < floor:
+            out.append(f"{label} via {prov}: {cov:.1f}% of {len(rs)} calls{thinking}")
+    return out
+
+
 def violation_detail(rows: list[dict]) -> list[str]:
     bad = [r for r in rows if r["lane"] == "off" and (r.get("fit_score") or 0) >= VIOLATION_AT]
     return [
@@ -150,6 +173,8 @@ def main() -> None:  # pragma: no cover
     print((a.out / "results.md").read_text())
     print("Wrong-field detail (off-lane scored >= 0.5):")
     print("\n".join("  " + line for line in violation_detail(rows)) or "  none")
+    print("\nProviders that did not return a score on every call:")
+    print("\n".join("  " + line for line in provider_detail(rows)) or "  none")
 
 
 if __name__ == "__main__":

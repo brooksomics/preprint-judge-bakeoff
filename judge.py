@@ -68,13 +68,7 @@ def _first_object(raw: str) -> tuple[dict, str]:
     return obj, raw[end:].strip()
 
 
-def parse(raw: str) -> dict:
-    """Strict on the score, lenient on wrapping. Anything that raises here counts as uncovered."""
-    text = (raw or "").strip()
-    try:
-        obj, trailing = _first_object(text)
-    except (json.JSONDecodeError, ValueError) as e:
-        raise ValueError(f"not JSON: {e}") from e
+def _score_of(obj: dict) -> float:
     if "fit_score" not in obj:
         raise ValueError("no fit_score")
     try:
@@ -83,6 +77,17 @@ def parse(raw: str) -> dict:
         raise ValueError(f"fit_score not numeric: {obj['fit_score']!r}") from e
     if not 0.0 <= score <= 1.0:
         raise ValueError(f"fit_score out of range: {score}")
+    return score
+
+
+def parse(raw: str) -> dict:
+    """Strict on the score, lenient on wrapping. Anything that raises here counts as uncovered."""
+    text = (raw or "").strip()
+    try:
+        obj, trailing = _first_object(text)
+    except (json.JSONDecodeError, ValueError) as e:
+        raise ValueError(f"not JSON: {e}") from e
+    score = _score_of(obj)
     return {
         "fit_score": score,
         "field": str(obj.get("field", "")),

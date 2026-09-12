@@ -33,3 +33,22 @@
   minimax/minimax-m3: 200/270  $0.049  uncovered=44
   minimax/minimax-m3: 225/270  $0.056  uncovered=50
   minimax/minimax-m3: 250/270  $0.064  uncovered=54
+  minimax/minimax-m3: 270/270  $0.069  uncovered=55
+=== minimax/minimax-m3@low: 270 calls ===
+  minimax/minimax-m3@low: 25/270  $0.005  uncovered=5
+  minimax/minimax-m3@low: 50/270  $0.011  uncovered=9
+  minimax/minimax-m3@low: 75/270  $0.015  uncovered=10
+  minimax/minimax-m3@low: 100/270  $0.020  uncovered=19
+  minimax/minimax-m3@low: 125/270  $0.027  uncovered=28
+  minimax/minimax-m3@low: 150/270  $0.032  uncovered=31
+  minimax/minimax-m3@low: 175/270  $0.038  uncovered=36
+  minimax/minimax-m3@low: 200/270  $0.045  uncovered=39
+  minimax/minimax-m3@low: 225/270  $0.049  uncovered=43
+  minimax/minimax-m3@low: 250/270  $0.054  uncovered=48
+  minimax/minimax-m3@low: 270/270  $0.060  uncovered=48
+=== xiaomi/mimo-v2.5: 270 calls ===
+  xiaomi/mimo-v2.5: 25/270  $0.002  uncovered=0
+  xiaomi/mimo-v2.5: 50/270  $0.004  uncovered=0
+  xiaomi/mimo-v2.5: 75/270  $0.006  uncovered=0
+  xiaomi/mimo-v2.5: 100/270  $0.008  uncovered=0
+  xiaomi/mimo-v2.5: 125/270  $0.009  uncovered=0

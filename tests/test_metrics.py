@@ -156,6 +156,16 @@ def test_load_rows_attaches_lane_from_preprints(tmp_path):
     assert analyze.load_rows(tmp_path / "r.jsonl", tmp_path / "p.json") == [{**r, "lane": "off"}]
 
 
+def test_provider_detail_reports_only_providers_below_full_coverage():
+    rows = [
+        {"label": "m", "provider": "Good", "fit_score": 0.5, "reasoning_tokens": 0},
+        {"label": "m", "provider": "Bad", "fit_score": None, "reasoning_tokens": 80},
+        {"label": "m", "provider": "Bad", "fit_score": 0.4, "reasoning_tokens": 120},
+    ]
+    out = analyze.provider_detail(rows)
+    assert out == ["m via Bad: 50.0% of 2 calls, mean 100 reasoning tok"]
+
+
 def test_violation_detail_lists_off_lane_hits(rows):
     for r in rows:
         r.setdefault("category", "neuroscience")
