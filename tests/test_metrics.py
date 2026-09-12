@@ -230,3 +230,37 @@ def test_figures_write_two_pngs(tmp_path, rows):
 
     figures.plot_all(analyze.metrics(rows, CEILING), tmp_path, CEILING)
     assert (tmp_path / "fig_mae_vs_cost.png").exists() and (tmp_path / "fig_coverage.png").exists()
+
+
+def test_unpack_falls_back_to_the_reasoning_field_when_content_is_empty():
+    """One provider returns the completion in message.reasoning and leaves content null."""
+    import harness
+
+    answer = '{"fit_score": 0.3, "field": "bioinformatics", "rationale": "ok"}'
+    misrouted = {
+        "choices": [{"message": {"content": None, "reasoning": answer}, "finish_reason": "stop"}],
+        "usage": {"cost": 0.0001},
+    }
+    got = harness.unpack(misrouted)
+    assert got["fit_score"] == 0.3 and got["content_field"] == "reasoning"
+
+    normal = {
+        "choices": [{"message": {"content": answer, "reasoning": ""}, "finish_reason": "stop"}],
+        "usage": {"cost": 0.0001},
+    }
+    assert harness.unpack(normal)["content_field"] == "content"
+
+
+def test_unpack_records_a_parse_error_when_both_fields_are_unusable():
+    import harness
+
+    resp = {"choices": [{"message": {"content": "", "reasoning": ""}}], "usage": {}}
+    got = harness.unpack(resp)
+    assert got.get("fit_score") is None and "parse_error" in got
+
+
+def test_violations_count_calls_not_preprints(rows):
+    """One off-lane preprint misjudged on both its repeats counts twice, not once."""
+    m = analyze.metrics(rows, CEILING)["m"]
+    off = [r for r in rows if r["label"] == "m" and r["lane"] == "off"]
+    assert len({r["doi"] for r in off}) == 1 and m["violations"] == 2

@@ -82,11 +82,24 @@ def _post(body: dict) -> tuple[dict | None, str | None]:
 
 
 def unpack(resp: dict) -> dict:
+    """Read the answer out of whichever field the provider put it in.
+
+    Verified 2026-09-12: at least one OpenRouter provider (Parasail, serving minimax/minimax-m3)
+    returns the completion in `message.reasoning` and leaves `message.content` null, with or
+    without a `reasoning` parameter in the request. Reading only `content` throws away complete,
+    correct answers and books them as coverage failures, so `content_field` records where the
+    text actually came from.
+    """
     u = resp.get("usage") or {}
     choice = (resp.get("choices") or [{}])[0]
-    raw = (choice.get("message") or {}).get("content") or ""
+    msg = choice.get("message") or {}
+    raw = msg.get("content") or ""
+    field = "content"
+    if not raw.strip() and (msg.get("reasoning") or "").strip():
+        raw, field = msg["reasoning"], "reasoning"
     out = {
         "raw": raw[:2000],
+        "content_field": field,
         "provider": resp.get("provider"),
         "finish_reason": choice.get("finish_reason"),
         "cost_usd": u.get("cost"),

@@ -3,7 +3,8 @@
 Metrics, per model config:
   cov         % of calls that returned a parseable 0-1 score (timeouts, bad JSON count against)
   strict      % of those whose whole body was clean JSON, nothing before or after it
-  violations  off-lane preprints scored >= 0.5 (a "wrong-field" call)
+  violations  CALLS on an off-lane preprint scored >= 0.5. Counts calls, not preprints: a
+              preprint misjudged on all 3 repeats contributes 3.
   sigma       mean over preprints of the std dev across the 3 repeats (repeatability)
   mae         mean over preprints of |model mean - ceiling mean| (agreement with the ceiling)
   top10       of the ceiling's 10 highest-scoring preprints, how many are in the model's own

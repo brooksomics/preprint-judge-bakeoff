@@ -24,30 +24,30 @@ analyze.py           metrics table (results/results.md + .csv) and two figures
 
 Metrics, per model config:
 
-| metric             | meaning                                                                                            |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| **cov%**           | calls that returned a parseable 0-1 score. Timeouts, bad JSON, and empty content count against it. |
-| **wrong-field**    | off-lane preprints scored >= 0.5. The profile says what is off-lane; the model should too.         |
-| **sigma**          | mean per-preprint std dev across the 3 repeats. Repeatability.                                     |
-| **MAE vs ceiling** | mean over preprints of \|model mean - ceiling mean\|. Agreement with the frontier model.           |
-| **latency**        | mean wall-clock seconds per call.                                                                  |
-| **$/call**         | mean cost per call as reported by OpenRouter, not the price sheet.                                 |
+| metric             | meaning                                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| **cov%**           | calls that returned a parseable 0-1 score. Timeouts, bad JSON, and empty content count against it.                               |
+| **wrong-field**    | calls on an off-lane preprint scored >= 0.5. Counts calls, not preprints: one preprint misjudged on all 3 repeats contributes 3. |
+| **sigma**          | mean per-preprint std dev across the 3 repeats. Repeatability.                                                                   |
+| **MAE vs ceiling** | mean over preprints of \|model mean - ceiling mean\|. Agreement with the frontier model.                                         |
+| **latency**        | mean wall-clock seconds per call.                                                                                                |
+| **$/call**         | mean cost per call as reported by OpenRouter, not the price sheet.                                                               |
 
 ## Results
 
 <!-- RESULTS:START -->
 
-Run of 2026-09-11: 90 preprints x 15 model configurations x 3 repeats = 4,050 calls,
-$2.19 measured, of which $1.06 was the ceiling pass.
+Run of 2026-09-11, re-scored 2026-09-12 after the `message.reasoning` fix: 90 preprints x 15
+model configurations x 3 repeats = 4,050 calls, $2.19 measured, of which $1.06 was the ceiling.
 
 | model                                  |  cov% | strict% | wrong-field | sigma | MAE vs ceiling | top-10 | latency s |  $/call |
 | -------------------------------------- | ----: | ------: | ----------: | ----: | -------------: | -----: | --------: | ------: |
 | anthropic/claude-sonnet-5              |  94.4 |    97.3 |           0 | 0.011 |          0.000 |  10/10 |      3.25 | 0.00394 |
-| minimax/minimax-m3@low                 |  82.2 |   100.0 |           1 | 0.047 |          0.072 |   6/10 |      1.43 | 0.00022 |
+| minimax/minimax-m3@low                 |  96.3 |    91.2 |           1 | 0.057 |          0.072 |   6/10 |      4.33 | 0.00027 |
 | tencent/hy3                            | 100.0 |   100.0 |           0 | 0.033 |          0.088 |   5/10 |      4.22 | 0.00006 |
 | deepseek/deepseek-v4-flash-0731@medium |  99.6 |   100.0 |           1 | 0.047 |          0.092 |   6/10 |     13.89 | 0.00013 |
 | deepseek/deepseek-v4-flash-0731@low    | 100.0 |   100.0 |           1 | 0.058 |          0.096 |   6/10 |     16.77 | 0.00014 |
-| minimax/minimax-m3                     |  79.6 |   100.0 |           1 | 0.046 |          0.101 |   6/10 |      1.39 | 0.00026 |
+| minimax/minimax-m3                     |  97.0 |   100.0 |           1 | 0.054 |          0.099 |   8/10 |      2.46 | 0.00021 |
 | xiaomi/mimo-v2.5                       | 100.0 |   100.0 |           2 | 0.065 |          0.103 |   6/10 |      5.55 | 0.00007 |
 | qwen/qwen3.8-flash                     |  99.6 |   100.0 |           1 | 0.063 |          0.118 |   5/10 |      1.89 | 0.00010 |
 | inception/mercury-2.5                  |  99.3 |    99.6 |           0 | 0.062 |          0.120 |   6/10 |      0.89 | 0.00007 |
@@ -58,11 +58,11 @@ $2.19 measured, of which $1.06 was the ceiling pass.
 | deepseek/deepseek-v4-flash-0731        | 100.0 |   100.0 |           3 | 0.081 |          0.158 |   6/10 |      4.33 | 0.00008 |
 | openai/gpt-5.6-luna                    | 100.0 |   100.0 |           2 | 0.024 |          0.181 |   5/10 |      1.80 | 0.00027 |
 
-`minimax/minimax-m3@low` has the best agreement in the table and answered 82% of the
-time, so it is not usable. Among configurations at >= 99% coverage, `tencent/hy3` has
-both the best agreement and the lowest price; `deepseek/deepseek-v4.1-flash` matched the
-most of the ceiling's own top ten (8/10) while ranking ninth of twelve on MAE, which is
-why both columns are here.
+Among configurations at >= 99% coverage, `tencent/hy3` has both the best agreement and the
+lowest price. `deepseek/deepseek-v4.1-flash` matched the most of the ceiling's own top ten
+(8/10) while ranking ninth of twelve on MAE, which is why both columns are here. The two
+MiniMax rows fall short on coverage for a plain reason: the model returns well-formed JSON
+with no `fit_score` key in it, across four different providers.
 
 Reproduce with `uv run python analyze.py` against `data/results.jsonl`.
 
@@ -120,6 +120,11 @@ already exist, so a crashed or budget-stopped run picks up where it left off.
   and answered normally. `analyze.py` prints coverage per (model, provider) for
   exactly this reason. Pin `provider: {"only": [...], "allow_fallbacks": false}` if
   you need a run to be reproducible.
+- **Read the answer out of whichever field it arrives in.** One provider (Parasail, serving
+  minimax/minimax-m3) returns the completion in `message.reasoning` and leaves `message.content`
+  null, with or without a `reasoning` parameter in the request. Reading only `content` booked 77
+  complete answers in this run as coverage failures and scored that model at 79.6% instead of
+  97.0%. `harness.unpack` now falls back to `reasoning` and records `content_field`.
 - **A parseable score is not clean JSON.** Claude Haiku 4.5 wrapped all 270 of its
   JSON-mode responses in a ` ```json ` markdown fence, so a bare `json.loads()`
   scores it at 0% coverage. `judge.parse` takes the first JSON object in the body and
