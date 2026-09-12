@@ -52,3 +52,41 @@
   xiaomi/mimo-v2.5: 75/270  $0.006  uncovered=0
   xiaomi/mimo-v2.5: 100/270  $0.008  uncovered=0
   xiaomi/mimo-v2.5: 125/270  $0.009  uncovered=0
+  xiaomi/mimo-v2.5: 150/270  $0.011  uncovered=0
+  xiaomi/mimo-v2.5: 175/270  $0.013  uncovered=0
+  xiaomi/mimo-v2.5: 200/270  $0.014  uncovered=0
+  xiaomi/mimo-v2.5: 225/270  $0.016  uncovered=0
+  xiaomi/mimo-v2.5: 250/270  $0.018  uncovered=0
+  xiaomi/mimo-v2.5: 270/270  $0.019  uncovered=0
+=== google/gemini-3.5-flash-lite: 270 calls ===
+  google/gemini-3.5-flash-lite: 25/270  $0.011  uncovered=0
+  google/gemini-3.5-flash-lite: 50/270  $0.022  uncovered=0
+  google/gemini-3.5-flash-lite: 75/270  $0.034  uncovered=0
+  google/gemini-3.5-flash-lite: 100/270  $0.045  uncovered=0
+  google/gemini-3.5-flash-lite: 125/270  $0.056  uncovered=0
+  google/gemini-3.5-flash-lite: 150/270  $0.068  uncovered=0
+  google/gemini-3.5-flash-lite: 175/270  $0.079  uncovered=0
+  google/gemini-3.5-flash-lite: 200/270  $0.090  uncovered=0
+  google/gemini-3.5-flash-lite: 225/270  $0.101  uncovered=0
+  google/gemini-3.5-flash-lite: 250/270  $0.111  uncovered=0
+  google/gemini-3.5-flash-lite: 270/270  $0.120  uncovered=0
+=== deepseek/deepseek-v4-flash-0731: 270 calls ===
+  deepseek/deepseek-v4-flash-0731: 25/270  $0.002  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 50/270  $0.004  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 75/270  $0.007  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 100/270  $0.009  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 125/270  $0.011  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 150/270  $0.013  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 175/270  $0.014  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 200/270  $0.017  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 225/270  $0.019  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 250/270  $0.020  uncovered=0
+  deepseek/deepseek-v4-flash-0731: 270/270  $0.022  uncovered=0
+=== deepseek/deepseek-v4-flash-0731@low: 270 calls ===
+  deepseek/deepseek-v4-flash-0731@low: 25/270  $0.003  uncovered=0
+  deepseek/deepseek-v4-flash-0731@low: 50/270  $0.007  uncovered=0
+  deepseek/deepseek-v4-flash-0731@low: 75/270  $0.011  uncovered=0
+  deepseek/deepseek-v4-flash-0731@low: 100/270  $0.016  uncovered=0
+  deepseek/deepseek-v4-flash-0731@low: 125/270  $0.020  uncovered=0
+  deepseek/deepseek-v4-flash-0731@low: 150/270  $0.024  uncovered=0
+  deepseek/deepseek-v4-flash-0731@low: 175/270  $0.027  uncovered=0

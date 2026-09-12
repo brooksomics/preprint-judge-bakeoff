@@ -34,12 +34,12 @@ def _style(ax) -> None:
     ax.set_axisbelow(True)
 
 
-def _legend(ax) -> None:
+def _legend(ax, **kw) -> None:
     handles = [
         Line2D([], [], marker="o", ls="", color=BASE, label="reasoning off"),
         Line2D([], [], marker="o", ls="", color=REASONING, label="reasoning on (@low / @medium)"),
     ]
-    ax.legend(handles=handles, frameon=False, fontsize=8, labelcolor=INK2, loc="best")
+    ax.legend(handles=handles, frameon=False, fontsize=8, labelcolor=INK2, **kw)
 
 
 def _scatter_points(ax, pts: list[tuple[str, dict]]) -> None:
@@ -77,7 +77,7 @@ def plot_mae_vs_cost(m: dict, out: Path, ceiling: str) -> None:
 
 def plot_coverage(m: dict, out: Path, ceiling: str) -> None:
     ks = sorted(m, key=lambda k: (-m[k]["cov"], k))
-    fig, ax = plt.subplots(figsize=(7.5, 0.34 * len(ks) + 1.6), facecolor=SURFACE)
+    fig, ax = plt.subplots(figsize=(7.5, 0.34 * len(ks) + 2.0), facecolor=SURFACE)
     _style(ax)
     colors = [REASONING if "@" in k else BASE for k in ks]
     bars = ax.barh([_short(k) for k in ks], [m[k]["cov"] for k in ks], color=colors, height=0.62)
@@ -89,7 +89,7 @@ def plot_coverage(m: dict, out: Path, ceiling: str) -> None:
     ax.grid(False, axis="y")
     ax.set_xlabel("coverage: % of calls that returned a parseable score", color=INK2)
     ax.set_title("Coverage by model config", color=INK, fontsize=10, loc="left")
-    _legend(ax)
+    _legend(ax, loc="upper center", bbox_to_anchor=(0.5, -0.12 - 0.5 / len(ks)), ncol=2)
     _save(fig, out / "fig_coverage.png")
 
 
