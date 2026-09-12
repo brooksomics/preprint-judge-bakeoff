@@ -86,7 +86,7 @@ def unpack(resp: dict) -> dict:
     choice = (resp.get("choices") or [{}])[0]
     raw = (choice.get("message") or {}).get("content") or ""
     out = {
-        "raw": raw[:500],
+        "raw": raw[:2000],
         "provider": resp.get("provider"),
         "finish_reason": choice.get("finish_reason"),
         "cost_usd": u.get("cost"),

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 PROFILE_PATH = Path(__file__).with_name("profile.md")
@@ -26,7 +25,7 @@ READING PROFILE
 
 USER = "Title: {title}\n\nAbstract: {abstract}"
 
-_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.M)
+_DECODER = json.JSONDecoder()
 
 
 def load_profile() -> str:
@@ -43,8 +42,9 @@ def build_messages(item: dict, profile: str) -> list[dict]:
 def reasoning_body(level: str) -> dict:
     """OpenRouter `reasoning` param (verified 2026-09-11): {"enabled": false} switches thinking
     off, {"effort": "low"|"medium"|"high"} turns it up. "default" omits the key and takes the
-    provider default (DeepSeek V4 Flash: ON). Gemini 3.5 Flash-Lite rejects enabled=false with
-    HTTP 400 "Reasoning is mandatory for this endpoint", so it can only run at default."""
+    provider default (DeepSeek V4 Flash: ON). Gemini 3.5 Flash-Lite and GLM 5.3 Flash reject
+    enabled=false with HTTP 400 "Reasoning is mandatory for this endpoint", so they run at
+    default."""
     if level == "default":
         return {}
     if level == "off":
@@ -52,14 +52,30 @@ def reasoning_body(level: str) -> dict:
     return {"reasoning": {"effort": level}}
 
 
+def _first_object(raw: str) -> tuple[dict, str]:
+    """The first well-formed JSON object and whatever followed it.
+
+    Lenient on purpose: a downstream pipeline would take the first object and move on, so
+    counting "valid JSON, then the model said it again" as a coverage failure would overstate
+    the finding. `strict` in the parse result records whether the whole body was clean JSON.
+    """
+    start = raw.find("{")
+    if start < 0:
+        raise ValueError("no JSON object in response")
+    obj, end = _DECODER.raw_decode(raw, start)
+    if not isinstance(obj, dict):
+        raise ValueError("top-level JSON is not an object")
+    return obj, raw[end:].strip()
+
+
 def parse(raw: str) -> dict:
     """Strict on the score, lenient on wrapping. Anything that raises here counts as uncovered."""
-    text = _FENCE.sub("", (raw or "").strip())
+    text = (raw or "").strip()
     try:
-        obj = json.loads(text)
-    except json.JSONDecodeError as e:
+        obj, trailing = _first_object(text)
+    except (json.JSONDecodeError, ValueError) as e:
         raise ValueError(f"not JSON: {e}") from e
-    if not isinstance(obj, dict) or "fit_score" not in obj:
+    if "fit_score" not in obj:
         raise ValueError("no fit_score")
     try:
         score = float(obj["fit_score"])
@@ -71,4 +87,5 @@ def parse(raw: str) -> dict:
         "fit_score": score,
         "field": str(obj.get("field", "")),
         "rationale": str(obj.get("rationale", "")),
+        "strict_json": not trailing and text.startswith("{"),
     }

@@ -2,6 +2,7 @@
 
 Metrics, per model config:
   cov         % of calls that returned a parseable 0-1 score (timeouts, bad JSON count against)
+  strict      % of those whose whole body was clean JSON, nothing before or after it
   violations  off-lane preprints scored >= 0.5 (a "wrong-field" call)
   sigma       mean over preprints of the std dev across the 3 repeats (repeatability)
   mae         mean over preprints of |model mean - ceiling mean| (agreement with the ceiling)
@@ -20,7 +21,17 @@ from collections import defaultdict
 from pathlib import Path
 
 CEILING = "anthropic/claude-sonnet-5"
-COLUMNS = ("label", "cov", "violations", "sigma", "mae", "latency_s", "cost_usd", "n_calls")
+COLUMNS = (
+    "label",
+    "cov",
+    "strict",
+    "violations",
+    "sigma",
+    "mae",
+    "latency_s",
+    "cost_usd",
+    "n_calls",
+)
 VIOLATION_AT = 0.5
 
 
@@ -47,6 +58,9 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
     costs = [c for r in runs if (c := r.get("cost_usd")) is not None]
     return {
         "cov": 100 * len(scored) / len(runs),
+        "strict": 100 * sum(bool(r.get("strict_json")) for r in scored) / len(scored)
+        if scored
+        else math.nan,
         "violations": sum(
             1 for r in scored if r["lane"] == "off" and r["fit_score"] >= VIOLATION_AT
         ),
@@ -79,12 +93,12 @@ def write_csv(m: dict, path: Path) -> None:
 
 
 def write_md(m: dict, path: Path) -> None:
-    md = ["| model | cov% | wrong-field | sigma | MAE vs ceiling | latency s | $/call |"]
-    md.append("|---|---:|---:|---:|---:|---:|---:|")
+    md = ["| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling | latency s | $/call |"]
+    md.append("|---|---:|---:|---:|---:|---:|---:|---:|")
     for k, r in m.items():
         md.append(
-            f"| {k} | {r['cov']:.1f} | {r['violations']} | {r['sigma']:.3f} | {r['mae']:.3f} "
-            f"| {r['latency_s']:.2f} | {r['cost_usd']:.5f} |"
+            f"| {k} | {r['cov']:.1f} | {r['strict']:.1f} | {r['violations']} | {r['sigma']:.3f} "
+            f"| {r['mae']:.3f} | {r['latency_s']:.2f} | {r['cost_usd']:.5f} |"
         )
     path.write_text("\n".join(md) + "\n")
 

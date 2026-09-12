@@ -52,6 +52,12 @@ def test_coverage_counts_parseable_scores(rows):
     assert m["cov"] == pytest.approx(100 * 4 / 6)
 
 
+def test_strict_is_share_of_covered_calls_with_clean_json(rows):
+    for i, r in enumerate(r for r in rows if r["label"] == "m" and r["fit_score"] is not None):
+        r["strict_json"] = i < 3  # 3 of the 4 covered calls were clean JSON
+    assert analyze.metrics(rows, CEILING)["m"]["strict"] == pytest.approx(75.0)
+
+
 def test_wrong_field_violation_is_off_lane_scored_at_least_half(rows):
     m = analyze.metrics(rows, CEILING)
     assert m["m"]["violations"] == 2
@@ -66,10 +72,24 @@ def test_sigma_is_mean_of_per_item_stdev(rows):
 
 def test_parse_accepts_fenced_json_and_clamps_nothing():
     raw = '```json\n{"fit_score": 0.73, "field": "genomics", "rationale": "ok"}\n```'
-    assert judge.parse(raw) == {"fit_score": 0.73, "field": "genomics", "rationale": "ok"}
+    got = judge.parse(raw)
+    assert got == {"fit_score": 0.73, "field": "genomics", "rationale": "ok", "strict_json": False}
 
 
-@pytest.mark.parametrize("raw", ["not json", '{"field": "x"}', '{"fit_score": 1.7}', ""])
+def test_parse_takes_first_object_and_flags_trailing_output():
+    """Valid JSON followed by the model saying it again is covered, but not strict."""
+    one = '{"fit_score": 0.4, "field": "x", "rationale": "y"}'
+    assert judge.parse(one)["strict_json"] is True
+    dup = judge.parse(f"{one}\n\nWait, let me redo that.\n{one}")
+    assert dup["fit_score"] == 0.4 and dup["strict_json"] is False
+
+
+def test_parse_rejects_trailing_comma_which_is_not_json():
+    with pytest.raises(ValueError):
+        judge.parse('{"fit_score": 0.15, "field": "x", }')
+
+
+@pytest.mark.parametrize("raw", ["not json", '{"field": "x"}', '{"fit_score": 1.7}', "", "[1, 2]"])
 def test_parse_rejects_missing_or_out_of_range_score(raw):
     with pytest.raises(ValueError):
         judge.parse(raw)
@@ -111,7 +131,7 @@ def test_results_table_roundtrip(tmp_path, rows):
     m = analyze.metrics(rows, CEILING)
     analyze.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
-    assert csv[0].startswith("label,cov,violations,sigma,mae,latency_s,cost_usd")
+    assert csv[0].startswith("label,cov,strict,violations,sigma,mae,latency_s,cost_usd")
     assert json.dumps(m)  # serializable
 
 
