@@ -24,18 +24,19 @@ analyze.py           metrics table (results/results.md + .csv) and two figures
 
 Metrics, per model config:
 
-| metric | meaning |
-|---|---|
-| **cov%** | calls that returned a parseable 0-1 score. Timeouts, bad JSON, and empty content count against it. |
-| **wrong-field** | off-lane preprints scored >= 0.5. The profile says what is off-lane; the model should too. |
-| **sigma** | mean per-preprint std dev across the 3 repeats. Repeatability. |
-| **MAE vs ceiling** | mean over preprints of \|model mean - ceiling mean\|. Agreement with the frontier model. |
-| **latency** | mean wall-clock seconds per call. |
-| **$/call** | mean cost per call as reported by OpenRouter, not the price sheet. |
+| metric             | meaning                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| **cov%**           | calls that returned a parseable 0-1 score. Timeouts, bad JSON, and empty content count against it. |
+| **wrong-field**    | off-lane preprints scored >= 0.5. The profile says what is off-lane; the model should too.         |
+| **sigma**          | mean per-preprint std dev across the 3 repeats. Repeatability.                                     |
+| **MAE vs ceiling** | mean over preprints of \|model mean - ceiling mean\|. Agreement with the frontier model.           |
+| **latency**        | mean wall-clock seconds per call.                                                                  |
+| **$/call**         | mean cost per call as reported by OpenRouter, not the price sheet.                                 |
 
 ## Results
 
 <!-- RESULTS:START -->
+
 _Run pending._
 <!-- RESULTS:END -->
 
@@ -82,9 +83,19 @@ already exist, so a crashed or budget-stopped run picks up where it left off.
 - **max_tokens is 4096 for every call.** Reasoning tokens are billed as completion
   tokens and count against it.
 - **Cost is measured, not looked up.** `usage: {"include": true}` makes OpenRouter
-  return the cost of each call; `$/call` is the mean over calls that returned. The
-  provider that served each call is recorded too, since the same model id can route
-  to providers with different prices.
+  return the cost of each call; `$/call` is the mean over calls that returned.
+- **The provider that served each call is recorded, and it matters.** A model id on
+  OpenRouter is a routing decision, not a model: the same id is served by several
+  providers and they do not all honor the same parameters. In this run one provider
+  ignored `reasoning: {"enabled": false}` for MiniMax M3, emitted reasoning tokens
+  and returned `content: null` on every call it served, while two others honored it
+  and answered normally. `analyze.py` prints coverage per (model, provider) for
+  exactly this reason. Pin `provider: {"only": [...], "allow_fallbacks": false}` if
+  you need a run to be reproducible.
+- **A parseable score is not clean JSON.** Claude Haiku 4.5 wrapped all 270 of its
+  JSON-mode responses in a ` ```json ` markdown fence, so a bare `json.loads()`
+  scores it at 0% coverage. `judge.parse` takes the first JSON object in the body and
+  records `strict_json` separately; the table reports both.
 - The ceiling is scored with the same 3 repeats, so its row shows its own sigma and
   how many "wrong-field" calls the ceiling itself makes.
 
