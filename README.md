@@ -22,6 +22,7 @@ harness.py           preprints x models x 3 repeats through OpenRouter JSON mode
 analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, README sync
 disagreement.py      the preprints the usable models split on most -> results/disagreement.md
 baseline.py          zero-LLM control: tf-idf cosine(profile.md, title + abstract) as a derived row
+ensembles.py         median-of-3 cheap models as derived rows (pre-registered combos only)
 ```
 
 Metrics, per model config:
@@ -49,11 +50,14 @@ model configurations x 3 repeats = 4,050 calls, $2.19 measured, of which $1.06 w
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | anthropic/claude-sonnet-5 | 94.4 | 97.3 | 0 | 0.011 | 0.000 [0.000, 0.000] | 1.00 | 1.00 | 10/10 | 3.25 | 0.00394 |
 | minimax/minimax-m3@low | 96.3 | 91.2 | 1 | 0.057 | 0.072 [0.054, 0.092] | 0.96 | 0.91 | 6/10 | 4.33 | 0.00027 |
+| _ens:hy3+deepseek-v4-flash-0731@medium+mimo-v2.5_ | 100.0 | 100.0 | 0 | n/a | 0.085 [0.067, 0.105] | 0.66 | 0.91 | 6/10 | 14.66 | 0.00026 |
 | tencent/hy3 | 100.0 | 100.0 | 0 | 0.033 | 0.088 [0.068, 0.109] | 1.00 | 0.89 | 5/10 | 4.22 | 0.00006 |
 | deepseek/deepseek-v4-flash-0731@medium | 99.6 | 100.0 | 1 | 0.047 | 0.092 [0.073, 0.112] | 0.35 | 0.90 | 6/10 | 13.89 | 0.00013 |
+| _ens:hy3+mimo-v2.5+mercury-2.5_ | 100.0 | 100.0 | 0 | n/a | 0.093 [0.074, 0.113] | 0.20 | 0.91 | 7/10 | 6.78 | 0.00020 |
 | deepseek/deepseek-v4-flash-0731@low | 100.0 | 100.0 | 1 | 0.058 | 0.096 [0.077, 0.116] | 0.19 | 0.89 | 6/10 | 16.77 | 0.00014 |
 | minimax/minimax-m3 | 97.0 | 100.0 | 1 | 0.054 | 0.099 [0.076, 0.123] | 0.16 | 0.92 | 8/10 | 2.46 | 0.00021 |
 | xiaomi/mimo-v2.5 | 100.0 | 100.0 | 2 | 0.065 | 0.103 [0.080, 0.125] | 0.06 | 0.88 | 6/10 | 5.55 | 0.00007 |
+| _ens:hy3+gemini-3.5-flash-lite+deepseek-v4.1-flash_ | 100.0 | 100.0 | 0 | n/a | 0.106 [0.087, 0.127] | 0.00 | 0.91 | 9/10 | 6.00 | 0.00075 |
 | qwen/qwen3.8-flash | 99.6 | 100.0 | 1 | 0.063 | 0.118 [0.090, 0.149] | 0.00 | 0.87 | 5/10 | 1.89 | 0.00010 |
 | inception/mercury-2.5 | 99.3 | 99.6 | 0 | 0.062 | 0.120 [0.099, 0.143] | 0.00 | 0.90 | 6/10 | 0.89 | 0.00007 |
 | google/gemini-3.5-flash-lite | 100.0 | 100.0 | 0 | 0.015 | 0.124 [0.096, 0.154] | 0.00 | 0.88 | 7/10 | 1.06 | 0.00044 |
@@ -62,7 +66,7 @@ model configurations x 3 repeats = 4,050 calls, $2.19 measured, of which $1.06 w
 | z-ai/glm-5.3-flash | 100.0 | 97.4 | 0 | 0.035 | 0.147 [0.124, 0.169] | 0.00 | 0.93 | 7/10 | 11.48 | 0.00050 |
 | deepseek/deepseek-v4-flash-0731 | 100.0 | 100.0 | 3 | 0.081 | 0.158 [0.135, 0.182] | 0.00 | 0.90 | 6/10 | 4.33 | 0.00008 |
 | openai/gpt-5.6-luna | 100.0 | 100.0 | 2 | 0.024 | 0.181 [0.143, 0.222] | 0.00 | 0.93 | 5/10 | 1.80 | 0.00027 |
-| baseline:tfidf | 100.0 | 100.0 | 2 | n/a | n/a | n/a | 0.56 | 4/10 | 0.00 | 0.00000 |
+| _baseline:tfidf_ | 100.0 | 100.0 | 2 | n/a | n/a | n/a | 0.56 | 4/10 | 0.00 | 0.00000 |
 
 Among configurations at >= 99% coverage, `tencent/hy3` has both the best agreement and the
 lowest price, so it is the reference for the `P(<= best)` column. Read that column before
@@ -94,6 +98,23 @@ on **top-10**. A model whose rho or top-10 does not clear the baseline is not ad
 tf-idf would not have. Not tried: sentence-embedding cosine, which would need a dependency this
 repo does not have; the "corpus" variant (cosine to the abstracts of past picks instead of the
 profile) is the obvious next control.
+
+## Ensembles
+
+Compound judges are the thesis of frameworks like [Verdict](https://github.com/haizelabs/verdict):
+instead of one call, aggregate several. The `ens:` rows are the cheapest version of that idea,
+computed from scores already in `data/results.jsonl`: per preprint, the **median** of three
+models' mean scores. Cost is the three costs summed, latency the slowest of the three, and the
+row is unscored wherever any component failed, so its coverage is all-or-nothing. They are
+italic in the table and carry `derived = True` in the CSV; the `P(<= best)` reference is
+always a single model.
+
+Three combinations are reported, chosen by rule before any ensemble was scored: the best-MAE,
+steadiest-sigma and best-top-10 usable models together; the three cheapest usable models; and
+the three lowest-MAE usable models from three different labs. There was deliberately no search
+over combinations. Picking the best of many ensembles on the same 90 preprints the table is
+scored on would be optimistic by construction, and even these three are post-hoc in the sense
+that the components were chosen from this table.
 
 ## Where the models disagree
 

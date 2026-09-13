@@ -16,6 +16,7 @@ Metrics, per model config:
               distribution can hide from MAE.
   latency_s   mean wall-clock seconds per call
   cost_usd    mean OpenRouter-reported cost per call that returned
+  derived     True for rows computed from other rows (baseline:, ens:), never the reference
 
 --top-disagreement N also writes results/disagreement.md (see disagreement.py).
 """
@@ -48,11 +49,13 @@ COLUMNS = (
     "latency_s",
     "cost_usd",
     "n_calls",
+    "derived",
 )
 VIOLATION_AT = 0.5
 SHORTLIST = 10
 USABLE_COV = 99.0
 DERIVED = ("baseline:", "ens:")  # rows computed from other rows, not API calls
+UNSCALED = ("baseline:",)  # not a fit score: MAE against the ceiling is meaningless
 
 
 def load_rows(results: Path, preprints: Path) -> list[dict]:
@@ -112,9 +115,9 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
 
 
 def best_usable(m: dict, ceiling: str) -> str:
-    """Reference for the paired test: lowest MAE among non-ceiling labels at >= USABLE_COV
-    coverage; falls back to the lowest MAE overall, then to the ceiling itself."""
-    cands = [k for k, r in m.items() if k != ceiling and not math.isnan(r["mae"])]
+    """Reference for the paired test: lowest MAE among single (non-derived, non-ceiling) models
+    at >= USABLE_COV coverage; falls back to the lowest MAE overall, then to the ceiling."""
+    cands = [k for k, r in m.items() if k != ceiling and not (math.isnan(r["mae"]) or r["derived"])]
     usable = [k for k in cands if m[k]["cov"] >= USABLE_COV] or cands or [ceiling]
     return min(usable, key=lambda k: m[k]["mae"])
 
@@ -126,8 +129,10 @@ def metrics(rows: list[dict], ceiling: str = CEILING) -> dict[str, dict]:
         by_label[r["label"]][r["doi"]].append(r)
     ceiling_means = _item_means(by_label[ceiling])
     m = {label: _one(items, ceiling_means) for label, items in by_label.items()}
-    for k in [k for k in m if k.startswith(DERIVED)]:  # different scale: MAE is not comparable
-        m[k].update(mae=math.nan, mae_lo=math.nan, mae_hi=math.nan)
+    for k, r in m.items():
+        r["derived"] = k.startswith(DERIVED)
+        if k.startswith(UNSCALED):
+            r.update(mae=math.nan, mae_lo=math.nan, mae_hi=math.nan)
     ref = m[best_usable(m, ceiling)]["_errs"]
     for r in m.values():
         r["mae_diff_p"] = bootstrap.diff_p(r.pop("_errs"), ref)
@@ -148,11 +153,13 @@ def _args() -> argparse.Namespace:
 def main() -> None:  # pragma: no cover
     import baseline
     import disagreement
+    import ensembles
     import figures
     import report
 
     a = _args()
     rows = load_rows(a.results, a.preprints) + baseline.rows(a.preprints, a.profile)
+    rows += ensembles.all_rows(rows)
     m = metrics(rows, a.ceiling)
     report.write_tables(m, a.out)
     figures.plot_all(m, a.out, a.ceiling)

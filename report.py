@@ -8,7 +8,7 @@ import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
-from analyze import COLUMNS, DERIVED, SHORTLIST, VIOLATION_AT
+from analyze import COLUMNS, SHORTLIST, VIOLATION_AT
 
 MARK_START, MARK_END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
 
@@ -27,8 +27,8 @@ def _num(v: float, fmt: str) -> str:
     return "n/a" if math.isnan(v) else format(v, fmt)
 
 
-def _mae_cell(k: str, r: dict) -> str:
-    if k.startswith(DERIVED):
+def _mae_cell(r: dict) -> str:
+    if math.isnan(r["mae"]):
         return "n/a | n/a"
     return f"{r['mae']:.3f} [{r['mae_lo']:.3f}, {r['mae_hi']:.3f}] | {r['mae_diff_p']:.2f}"
 
@@ -41,8 +41,9 @@ def write_md(m: dict, path: Path) -> None:
     ]
     for k, r in m.items():
         md.append(
-            f"| {k} | {r['cov']:.1f} | {r['strict']:.1f} | {r['violations']} "
-            f"| {_num(r['sigma'], '.3f')} | {_mae_cell(k, r)} | {r['spearman']:.2f} "
+            f"| {f'_{k}_' if r['derived'] else k} | {r['cov']:.1f} | {r['strict']:.1f} "
+            f"| {r['violations']} | {_num(r['sigma'], '.3f')} | {_mae_cell(r)} "
+            f"| {r['spearman']:.2f} "
             f"| {r['top10']}/{SHORTLIST} | {r['latency_s']:.2f} | {r['cost_usd']:.5f} |"
         )
     path.write_text("\n".join(md) + "\n")
