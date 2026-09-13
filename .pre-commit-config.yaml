@@ -1,0 +1,39 @@
+# Install once: pre-commit install --hook-type pre-commit --hook-type pre-push
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        exclude: ^data/  # published dataset, byte-for-byte as scored
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=500]
+        exclude: ^data/results\.jsonl$
+      - id: check-merge-conflict
+      - id: detect-private-key
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.7
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: firewall-scan
+        name: firewall scan (private denylist + generic secret shapes)
+        entry: uv run python scripts/firewall_scan.py --require-terms
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]
+      - id: forbid-local-state
+        name: forbid local state files
+        entry: local state must never be committed (.env, credentials.json, seen.json, *.log)
+        language: fail
+        files: (^|/)(\.env|credentials\.json|seen\.json)$|\.log$
+        exclude: ^data/run\.log$  # run log of the published bake-off, tracked on purpose

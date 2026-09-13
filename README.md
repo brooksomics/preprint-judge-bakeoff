@@ -82,6 +82,7 @@ uv run python harness.py --smoke         # 2 preprints x 1 repeat per model: che
 uv run python harness.py                 # the full run, resumable; stops starting new configs past --budget
 uv run python analyze.py                 # table + figures into results/
 uv run pytest                            # pins the metric math
+pre-commit install --hook-type pre-commit --hook-type pre-push   # ruff, gitleaks, firewall scan
 ```
 
 The harness appends one JSON row per call and skips `(model, doi, repeat)` triples that
@@ -138,6 +139,10 @@ You are calibrating to a model, not to truth. A cheap judge with MAE 0.05 agains
 ceiling inherits every blind spot the ceiling has. The ceiling's own wrong-field count
 is the only check on that in this repo, and it is a weak one. Read the post for the
 longer version.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for what the code reads, sends, and never commits.
 
 ## License
 
