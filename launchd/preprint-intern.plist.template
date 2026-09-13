@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.preprintjudge.intern</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__UV_PATH__</string>
+        <string>run</string>
+        <string>--directory</string>
+        <string>__REPO_PATH__</string>
+        <string>--env-file</string>
+        <string>__REPO_PATH__/.env</string>
+        <string>python</string>
+        <string>-m</string>
+        <string>intern</string>
+    </array>
+
+    <!-- Every Thursday 14:00; intern.run refuses to send if the last digest is under 13 days old,
+         which is how a weekly trigger becomes a biweekly digest (launchd has no biweekly). -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>4</integer>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/.preprint-judge/launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.preprint-judge/launchd.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_PATH__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

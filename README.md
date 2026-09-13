@@ -21,6 +21,7 @@ judge.py             the one prompt every model sees, and the parser that decide
 harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
 analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, README sync
 probes.py            bias probes: does the judge reward long abstracts? (len rho column, flagged vs the ceiling)
+intern/              production run: fetch 14 days -> dedupe -> score once with hy3 -> email top 5 (launchd, biweekly)
 gate.py              PASS/FAIL exit-code gate for the re-run (thresholds on results.csv + live model-id check)
 agreement.py         chance-corrected agreement: kappa on the >= 0.5 decision, alpha over 0.1 bins, per-category verdicts
 disagreement.py      the preprints the usable models split on most -> results/disagreement.md
@@ -172,6 +173,26 @@ pre-commit install --hook-type pre-commit --hook-type pre-push   # ruff, gitleak
 
 The harness appends one JSON row per call and skips `(model, doi, repeat)` triples that
 already exist, so a crashed or budget-stopped run picks up where it left off.
+
+## The intern, in production
+
+`python -m intern` is the thing this repo was built to choose a model for: every other Thursday
+it pulls the last two weeks of in-lane bioRxiv preprints, drops the DOIs it has already sent,
+scores each once with the gate-approved model (`tencent/hy3`, reasoning off, about half a cent
+per run), and emails the top five to your own inbox over Gmail SMTP. It runs locally under
+launchd, so the Gmail app password never leaves the machine; it refuses to send if the last
+digest went out under 13 days ago (launchd has no biweekly trigger), and aborts if a run would
+cost more than $0.10.
+
+```bash
+uv run python -m intern --dry-run              # render the digest to stdout; sends nothing
+mkdir -p ~/.preprint-judge
+cp credentials.json.example ~/.preprint-judge/credentials.json   # then fill in the Gmail fields
+chmod 600 ~/.preprint-judge/credentials.json
+./scripts/install-launchd.sh                   # Thursday 14:00 weekly; biweekly enforced in code
+```
+
+See [SECURITY.md](SECURITY.md) for what it reads and sends.
 
 ## Re-running
 

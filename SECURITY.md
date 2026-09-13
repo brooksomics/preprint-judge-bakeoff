@@ -29,6 +29,18 @@ private denylist kept outside the repo; the terms are not published, only the sc
 - Gmail app password: Google Account -> Security -> 2-Step Verification -> App passwords.
   Revoke the old one, write the new one into `~/.preprint-judge/credentials.json`.
 
+## The intern (`python -m intern`)
+
+- **Reads:** `OPENROUTER_API_KEY` from the environment (launchd passes `.env` via `uv run
+  --env-file`), and `~/.preprint-judge/credentials.json` (mode 600: Gmail sender, app password,
+  receiver). State in `~/.preprint-judge/seen.json` and `intern.log`. None of it is in the repo;
+  `.gitignore` and the `forbid-local-state` hook both refuse those filenames.
+- **Sends:** each preprint's title and abstract plus `profile.md` to OpenRouter (one call per
+  preprint, hard budget $0.10 per run), and one digest email to *your own* inbox over Gmail
+  SMTP_SSL on port 465. Nothing else leaves the machine. `--dry-run` sends nothing.
+- **Rotate the app password:** revoke it at https://myaccount.google.com/apppasswords, create a
+  new one, write it into `~/.preprint-judge/credentials.json`.
+
 ## Reporting
 
 Open an issue, or email the address on the author's GitHub profile if it is sensitive.

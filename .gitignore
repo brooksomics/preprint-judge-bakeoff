@@ -8,3 +8,7 @@ __pycache__/
 data/smoke.jsonl
 # your own medRxiv pull; the published set is data/preprints.json
 data/preprints_medrxiv.json
+# intern state lives in ~/.preprint-judge/, never here
+credentials.json
+seen.json
+intern.log
