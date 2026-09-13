@@ -8,6 +8,12 @@ Verdict rule: reliable iff kappa_0.5 >= 0.6 and n >= 8.
 | anthropic/claude-haiku-4.5 | off-lane | 30 | 1.00 | almost perfect | 0.18 | reliable |
 | anthropic/claude-haiku-4.5 | systems biology | 15 | 0.63 | substantial | 0.67 | reliable |
 | anthropic/claude-haiku-4.5 | all | 86 | 0.50 | moderate | 0.65 | not reliable |
+| anthropic/claude-haiku-4.5#schema | bioinformatics | 14 | 0.00 | slight | 0.18 | not reliable |
+| anthropic/claude-haiku-4.5#schema | genomics | 15 | 0.47 | moderate | 0.57 | not reliable |
+| anthropic/claude-haiku-4.5#schema | microbiology | 12 | 0.62 | substantial | 0.58 | reliable |
+| anthropic/claude-haiku-4.5#schema | off-lane | 30 | 0.00 | slight | 0.25 | not reliable |
+| anthropic/claude-haiku-4.5#schema | systems biology | 15 | 0.44 | moderate | 0.59 | not reliable |
+| anthropic/claude-haiku-4.5#schema | all | 86 | 0.38 | fair | 0.55 | not reliable |
 | baseline:tfidf | bioinformatics | 14 | 0.00 | slight | -0.00 | not reliable |
 | baseline:tfidf | genomics | 15 | 0.76 | substantial | 0.58 | reliable |
 | baseline:tfidf | microbiology | 12 | -0.09 | worse than chance | 0.06 | not reliable |
@@ -68,6 +74,12 @@ Verdict rule: reliable iff kappa_0.5 >= 0.6 and n >= 8.
 | inception/mercury-2.5 | off-lane | 30 | 1.00 | almost perfect | 0.04 | reliable |
 | inception/mercury-2.5 | systems biology | 15 | 0.44 | moderate | 0.62 | not reliable |
 | inception/mercury-2.5 | all | 86 | 0.33 | fair | 0.59 | not reliable |
+| inception/mercury-2.5#schema | bioinformatics | 14 | 0.00 | slight | 0.01 | not reliable |
+| inception/mercury-2.5#schema | genomics | 15 | 0.63 | substantial | 0.70 | reliable |
+| inception/mercury-2.5#schema | microbiology | 12 | 0.62 | substantial | 0.67 | reliable |
+| inception/mercury-2.5#schema | off-lane | 30 | 1.00 | almost perfect | -0.10 | reliable |
+| inception/mercury-2.5#schema | systems biology | 15 | 0.44 | moderate | 0.60 | not reliable |
+| inception/mercury-2.5#schema | all | 86 | 0.36 | fair | 0.57 | not reliable |
 | minimax/minimax-m3 | bioinformatics | 14 | 0.00 | slight | 0.24 | not reliable |
 | minimax/minimax-m3 | genomics | 15 | 0.37 | fair | 0.77 | not reliable |
 | minimax/minimax-m3 | microbiology | 12 | 0.43 | moderate | 0.69 | not reliable |
@@ -110,3 +122,9 @@ Verdict rule: reliable iff kappa_0.5 >= 0.6 and n >= 8.
 | z-ai/glm-5.3-flash | off-lane | 30 | 1.00 | almost perfect | 0.22 | reliable |
 | z-ai/glm-5.3-flash | systems biology | 15 | 0.33 | fair | 0.58 | not reliable |
 | z-ai/glm-5.3-flash | all | 86 | 0.40 | fair | 0.53 | not reliable |
+| z-ai/glm-5.3-flash#schema | bioinformatics | 14 | 0.00 | slight | 0.02 | not reliable |
+| z-ai/glm-5.3-flash#schema | genomics | 15 | 0.47 | moderate | 0.46 | not reliable |
+| z-ai/glm-5.3-flash#schema | microbiology | 12 | 0.43 | moderate | 0.52 | not reliable |
+| z-ai/glm-5.3-flash#schema | off-lane | 30 | 1.00 | almost perfect | 0.18 | reliable |
+| z-ai/glm-5.3-flash#schema | systems biology | 15 | 0.33 | fair | 0.53 | not reliable |
+| z-ai/glm-5.3-flash#schema | all | 86 | 0.35 | fair | 0.51 | not reliable |

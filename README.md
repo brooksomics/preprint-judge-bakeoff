@@ -51,8 +51,11 @@ Metrics, per model config:
 
 <!-- RESULTS:START -->
 
-Run of 2026-09-11, re-scored 2026-09-12 after the `message.reasoning` fix: 90 preprints x 15
-model configurations x 3 repeats = 4,050 calls, $2.19 measured, of which $1.06 was the ceiling.
+Run of 2026-09-11, re-scored 2026-09-12 after the `message.reasoning` fix, plus three
+`json_schema` reruns on 2026-09-13: 90 preprints x 18 model configurations x 3 repeats =
+4,860 calls, $2.82 measured, of which $1.06 was the ceiling and $0.63 the reruns.
+Rows suffixed `#schema` ran with strict structured output instead of JSON mode; italic
+rows are derived from other rows, not API calls.
 
 | model | cov% | strict% | ladder strict / lenient / repaired | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) | rho | kappa | alpha | len rho | top-10 | latency s | $/call |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -68,10 +71,13 @@ model configurations x 3 repeats = 4,050 calls, $2.19 measured, of which $1.06 w
 | _ens:hy3+gemini-3.5-flash-lite+deepseek-v4.1-flash_ | 100.0 | 100.0 | n/a / n/a / n/a | 0 | n/a | 0.106 [0.087, 0.127] | 0.00 | 0.91 | 0.46 | 0.71 | 0.10 | 9/10 | 6.00 | 0.00075 |
 | qwen/qwen3.8-flash | 99.6 | 100.0 | 100.0 / 100.0 / 100.0 | 1 | 0.063 | 0.118 [0.090, 0.149] | 0.00 | 0.87 | 0.33 | 0.61 | 0.09 | 5/10 | 1.89 | 0.00010 |
 | inception/mercury-2.5 | 99.3 | 99.6 | 98.9 / 99.3 / 100.0 | 0 | 0.062 | 0.120 [0.099, 0.143] | 0.00 | 0.90 | 0.33 | 0.59 | 0.08 | 6/10 | 0.89 | 0.00007 |
+| inception/mercury-2.5#schema | 100.0 | 99.3 | 99.3 / 99.3 / 99.6 | 0 | 0.057 | 0.120 [0.100, 0.142] | 0.00 | 0.87 | 0.36 | 0.57 | 0.02 | 6/10 | 1.09 | 0.00007 |
 | google/gemini-3.5-flash-lite | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 0 | 0.015 | 0.124 [0.096, 0.154] | 0.00 | 0.88 | 0.50 | 0.62 | 0.03 | 7/10 | 1.06 | 0.00044 |
 | anthropic/claude-haiku-4.5 | 100.0 | 0.0 | 0.0 / 100.0 / 100.0 | 0 | 0.010 | 0.136 [0.117, 0.158] | 0.00 | 0.90 | 0.50 | 0.65 | 0.17 | 7/10 | 2.35 | 0.00161 |
 | deepseek/deepseek-v4.1-flash | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 3 | 0.061 | 0.140 [0.116, 0.165] | 0.00 | 0.91 | 0.40 | 0.58 | 0.12 | 8/10 | 4.43 | 0.00025 |
 | z-ai/glm-5.3-flash | 100.0 | 97.4 | 97.4 / 100.0 / 100.0 | 0 | 0.035 | 0.147 [0.124, 0.169] | 0.00 | 0.93 | 0.40 | 0.53 | 0.12 | 7/10 | 11.48 | 0.00050 |
+| z-ai/glm-5.3-flash#schema | 100.0 | 99.6 | 99.6 / 100.0 / 100.0 | 1 | 0.033 | 0.153 [0.129, 0.177] | 0.00 | 0.93 | 0.35 | 0.51 | 0.09 | 7/10 | 9.91 | 0.00050 |
+| anthropic/claude-haiku-4.5#schema | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 4 | 0.017 | 0.157 [0.133, 0.183] | 0.00 | 0.91 | 0.38 | 0.55 | 0.13 | 7/10 | 2.47 | 0.00176 |
 | deepseek/deepseek-v4-flash-0731 | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 3 | 0.081 | 0.158 [0.135, 0.182] | 0.00 | 0.90 | 0.43 | 0.46 | 0.04 | 6/10 | 4.33 | 0.00008 |
 | openai/gpt-5.6-luna | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 2 | 0.024 | 0.181 [0.143, 0.222] | 0.00 | 0.93 | 0.25 | 0.43 | 0.17 | 5/10 | 1.80 | 0.00027 |
 | _baseline:tfidf_ | 100.0 | 100.0 | n/a / n/a / n/a | 2 | n/a | n/a | n/a | 0.56 | n/a | n/a | 0.29 | 4/10 | 0.00 | 0.00000 |
@@ -232,6 +238,16 @@ Thresholds are yours to set; the defaults above are the ones the current winner 
   "Reasoning is mandatory for this endpoint": Gemini 3.5 Flash-Lite (which then reports
   0 reasoning tokens anyway) and GLM 5.3 Flash (which does think). Those two run at
   provider default, marked `"default"` in the roster.
+- **Structured output fixes the fence and nothing else.** Three models were rerun with
+  `response_format: {"type": "json_schema", "strict": true}` and the score schema from
+  `judge.SCHEMA` (rows suffixed `#schema`). Haiku 4.5 goes from 0.0% strict JSON to
+  100.0%: the markdown fence is gone. Its agreement does not improve, it worsens, MAE
+  0.136 [0.117, 0.158] to 0.157 [0.133, 0.183], and it
+  scores 4 off-lane calls at 0.5 or above where JSON mode scored 0. GLM 5.3 Flash
+  (0.147 to 0.153) and Mercury 2.5 (0.120 to 0.120) sit inside their own intervals;
+  Mercury's coverage moves from 99.3 to 100.0. Cost per call is unchanged for all three.
+  Structured output is a parser guarantee, not a judgment upgrade; if your parser already takes
+  the first JSON object, it buys you the `strict%` column and nothing in the columns that matter.
 - **Per-call timeout is 240 s.** A judge that needs more than four minutes for one
   abstract is not a judge; timeouts count against coverage.
 - **max_tokens is 4096 for every call.** Reasoning tokens are billed as completion

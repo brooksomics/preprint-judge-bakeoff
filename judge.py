@@ -39,6 +39,30 @@ USER = "Title: {title}\n\nAbstract: {abstract}"
 _DECODER = json.JSONDecoder()
 
 
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "fit_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "field": {"type": "string"},
+        "rationale": {"type": "string"},
+    },
+    "required": ["fit_score", "field", "rationale"],
+    "additionalProperties": False,
+}
+
+
+def response_format(mode: str) -> dict:
+    """OpenRouter response_format. json_object is the baseline every row was run in; json_schema
+    (strict) is the structured-output mode, verified live 2026-09-12 to make Haiku return bare
+    JSON where json_object mode gave a fenced block 270 times out of 270."""
+    if mode == "json_schema":
+        return {
+            "type": "json_schema",
+            "json_schema": {"name": "preprint_fit", "strict": True, "schema": SCHEMA},
+        }
+    return {"type": "json_object"}
+
+
 def load_profile() -> str:
     return PROFILE_PATH.read_text()
 

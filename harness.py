@@ -25,8 +25,10 @@ import judge
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 CEILING = "anthropic/claude-sonnet-5"
-# (model id, reasoning). "off" sends {"enabled": false}; "low"/"medium" send {"effort": ...};
-# "default" omits the key (for models that refuse to switch reasoning off).
+# (model id, reasoning[, mode]). "off" sends {"enabled": false}; "low"/"medium" send
+# {"effort": ...}; "default" omits the key (for models that refuse to switch reasoning off).
+# mode is "json_object" (default, every row in the published run) or "json_schema" (strict
+# structured output; label suffix "#schema"). Only three models were rerun under json_schema.
 MODELS = [
     (CEILING, "off"),
     ("anthropic/claude-haiku-4.5", "off"),
@@ -44,6 +46,10 @@ MODELS = [
     ("qwen/qwen3.8-flash", "off"),
     ("z-ai/glm-5.3-flash", "default"),  # refuses enabled=false too
     ("inception/mercury-2.5", "off"),
+    # json_schema strict mode reruns (2026-09-13): does structured output fix the fence?
+    ("anthropic/claude-haiku-4.5", "off", "json_schema"),
+    ("z-ai/glm-5.3-flash", "default", "json_schema"),
+    ("inception/mercury-2.5", "off", "json_schema"),
 ]
 MAX_TOKENS = 4096
 TIMEOUT_S = (
@@ -53,8 +59,9 @@ RETRY_ON = {429, 500, 502, 503}
 PROFILE = judge.load_profile()
 
 
-def label_of(model: str, level: str) -> str:
-    return model if level in ("off", "default") else f"{model}@{level}"
+def label_of(model: str, level: str, mode: str = "json_object") -> str:
+    base = model if level in ("off", "default") else f"{model}@{level}"
+    return base if mode == "json_object" else f"{base}#schema"
 
 
 def _post_once(req: urllib.request.Request) -> tuple[dict | None, str | None, bool]:
@@ -116,19 +123,20 @@ def unpack(resp: dict) -> dict:
 
 
 def run_one(task: tuple) -> dict:
-    (model, level), item, run_idx = task
+    (model, level, *rest), item, run_idx = task
+    mode = rest[0] if rest else "json_object"
     body = {
         "model": model,
         "messages": judge.build_messages(item, PROFILE),
         "max_tokens": MAX_TOKENS,
-        "response_format": {"type": "json_object"},
+        "response_format": judge.response_format(mode),
         "usage": {"include": True},
         **judge.reasoning_body(level),
     }
     t0 = time.time()
     resp, err = _post(body)
     res = unpack(resp) if resp else {"error": err}
-    meta = {"label": label_of(model, level), "model": model, "reasoning": level}
+    meta = {"label": label_of(model, level, mode), "model": model, "reasoning": level, "mode": mode}
     item_meta = {k: item[k] for k in ("doi", "category", "lane")} | {"title": item["title"][:120]}
     return meta | item_meta | {"run_idx": run_idx, "latency_s": round(time.time() - t0, 2)} | res
 
