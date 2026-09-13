@@ -80,7 +80,29 @@ def test_derived_rows_get_no_mae_but_keep_rank_columns(rows, tmp_path):
 
 
 def test_ceiling_mae_is_zero(rows):
-    assert analyze.metrics(rows, CEILING)[CEILING]["mae"] == 0.0
+    c = analyze.metrics(rows, CEILING)[CEILING]
+    assert (
+        c["mae"] == 0.0
+        and c["kappa_0.5"] == 1.0
+        and c["alpha_ord"] == 1.0
+        and c["kappa_top10"] == 1.0
+    )
+
+
+def test_write_agreement_renders_band_and_verdict(tmp_path):
+    table = [
+        {
+            "label": "m",
+            "category": "all",
+            "n": 9,
+            "kappa_0.5": 0.7,
+            "alpha_ord": 0.5,
+            "verdict": "reliable",
+        }
+    ]
+    report.write_agreement(table, tmp_path / "a.md")
+    text = (tmp_path / "a.md").read_text()
+    assert "| m | all | 9 | 0.70 | substantial | 0.50 | reliable |" in text and "n >= 8" in text
 
 
 def test_shortlist_takes_top_n_and_breaks_ties_by_doi():
@@ -182,7 +204,7 @@ def test_results_table_roundtrip(tmp_path, rows):
     report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
     assert csv[0].startswith(
-        "label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,top10"
+        "label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,top10"
     )
     assert json.dumps(m)  # serializable
 

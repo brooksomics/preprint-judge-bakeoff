@@ -26,4 +26,4 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--cov=judge --cov=analyze --cov=fetch_preprints --cov=bootstrap --cov=report --cov=baseline --cov=rankstats --cov=disagreement --cov=ensembles --cov=scripts --cov-report=term-missing"
+addopts = "--cov=judge --cov=analyze --cov=fetch_preprints --cov=bootstrap --cov=report --cov=baseline --cov=rankstats --cov=disagreement --cov=ensembles --cov=agreement --cov=scripts --cov-report=term-missing"

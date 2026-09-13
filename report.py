@@ -8,6 +8,7 @@ import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
+import agreement
 from analyze import COLUMNS, SHORTLIST, VIOLATION_AT
 
 MARK_START, MARK_END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
@@ -27,24 +28,50 @@ def _num(v: float, fmt: str) -> str:
     return "n/a" if math.isnan(v) else format(v, fmt)
 
 
-def _mae_cell(r: dict) -> str:
-    if math.isnan(r["mae"]):
-        return "n/a | n/a"
-    return f"{r['mae']:.3f} [{r['mae_lo']:.3f}, {r['mae_hi']:.3f}] | {r['mae_diff_p']:.2f}"
+def _cells(k: str, r: dict) -> list[str]:
+    nan = math.isnan(r["mae"])
+    mae = "n/a" if nan else f"{r['mae']:.3f} [{r['mae_lo']:.3f}, {r['mae_hi']:.3f}]"
+    return [
+        f"_{k}_" if r["derived"] else k,
+        f"{r['cov']:.1f}",
+        f"{r['strict']:.1f}",
+        str(r["violations"]),
+        _num(r["sigma"], ".3f"),
+        mae,
+        "n/a" if nan else f"{r['mae_diff_p']:.2f}",
+        f"{r['spearman']:.2f}",
+        _num(r["kappa_0.5"], ".2f"),
+        _num(r["alpha_ord"], ".2f"),
+        f"{r['top10']}/{SHORTLIST}",
+        f"{r['latency_s']:.2f}",
+        f"{r['cost_usd']:.5f}",
+    ]
 
 
 def write_md(m: dict, path: Path) -> None:
     cols = "| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) |"
     md = [
-        f"{cols} rho | top-{SHORTLIST} | latency s | $/call |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        f"{cols} rho | kappa | alpha | top-{SHORTLIST} | latency s | $/call |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for k, r in m.items():
+    md += ["| " + " | ".join(_cells(k, r)) + " |" for k, r in m.items()]
+    path.write_text("\n".join(md) + "\n")
+
+
+def write_agreement(table: list[dict], path: Path) -> None:
+    """Per-(label, category) kappa / alpha with the reliable-or-not verdict."""
+    md = [
+        f"Verdict rule: reliable iff kappa_0.5 >= {agreement.KAPPA_OK} and n >= {agreement.MIN_N}.",
+        "",
+        "| model | category | n | kappa_0.5 | band | alpha_ord | verdict |",
+        "|---|---|--:|--:|---|--:|---|",
+    ]
+    for r in sorted(table, key=lambda r: (r["label"], r["category"] == "all", r["category"])):
+        k = r["kappa_0.5"]
+        band = "n/a" if math.isnan(k) else agreement.kappa_band(k)
         md.append(
-            f"| {f'_{k}_' if r['derived'] else k} | {r['cov']:.1f} | {r['strict']:.1f} "
-            f"| {r['violations']} | {_num(r['sigma'], '.3f')} | {_mae_cell(r)} "
-            f"| {r['spearman']:.2f} "
-            f"| {r['top10']}/{SHORTLIST} | {r['latency_s']:.2f} | {r['cost_usd']:.5f} |"
+            f"| {r['label']} | {r['category']} | {r['n']} | {_num(k, '.2f')} | {band} "
+            f"| {_num(r['alpha_ord'], '.2f')} | {r['verdict']} |"
         )
     path.write_text("\n".join(md) + "\n")
 

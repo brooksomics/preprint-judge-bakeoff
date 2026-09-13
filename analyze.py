@@ -11,6 +11,9 @@ Metrics, per model config:
   mae_diff_p  paired bootstrap: share of resamples where this model's MAE <= the best usable
               model's (lowest MAE at >= USABLE_COV coverage). 1.0 for the reference itself.
   spearman    rank correlation between the model's and the ceiling's per-preprint means
+  kappa_0.5   Cohen's kappa on the decision score >= 0.5, model vs ceiling (agreement.py)
+  alpha_ord   Krippendorff's alpha over 0.1 bins, squared bin distance, model vs ceiling
+  kappa_top10 Cohen's kappa on membership in the top-10 shortlist
   top10       of the ceiling's 10 highest-scoring preprints, how many are in the model's own
               top 10. The decision the triage step actually makes, which a compressed score
               distribution can hide from MAE.
@@ -30,6 +33,7 @@ import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
+import agreement
 import bootstrap
 import rankstats
 
@@ -45,6 +49,9 @@ COLUMNS = (
     "mae_hi",
     "mae_diff_p",
     "spearman",
+    "kappa_0.5",
+    "alpha_ord",
+    "kappa_top10",
     "top10",
     "latency_s",
     "cost_usd",
@@ -78,18 +85,21 @@ def shortlist(means: dict[str, float], n: int) -> set[str]:
 
 
 def _agreement(means: dict, ceiling_means: dict) -> dict:
-    """MAE with its bootstrap interval, top-N overlap, and the per-preprint errors (for pairing)."""
-    errs = {d: abs(m - ceiling_means[d]) for d, m in means.items() if d in ceiling_means}
+    """MAE with its bootstrap interval, rank/decision agreement, and per-preprint errors."""
+    dois = sorted(d for d in means if d in ceiling_means)
+    errs = {d: abs(means[d] - ceiling_means[d]) for d in dois}
     lo, hi = bootstrap.mae_ci(errs)
-    top = shortlist(means, SHORTLIST) & shortlist(ceiling_means, SHORTLIST)
-    mae = st.mean(errs.values()) if errs else math.nan
-    rho = rankstats.spearman([means[d] for d in errs], [ceiling_means[d] for d in errs])
+    mine, theirs = shortlist(means, SHORTLIST), shortlist(ceiling_means, SHORTLIST)
+    pairs = agreement.decision_pairs(means, ceiling_means)
     return {
-        "mae": mae,
+        "mae": st.mean(errs.values()) if errs else math.nan,
         "mae_lo": lo,
         "mae_hi": hi,
-        "spearman": rho,
-        "top10": len(top),
+        "spearman": rankstats.spearman([means[d] for d in dois], [ceiling_means[d] for d in dois]),
+        "kappa_0.5": agreement.cohen_kappa(pairs),
+        "alpha_ord": agreement.alpha_ordinal([(means[d], ceiling_means[d]) for d in dois]),
+        "kappa_top10": agreement.kappa_top(mine, theirs, dois),
+        "top10": len(mine & theirs),
         "_errs": errs,
     }
 
@@ -132,7 +142,8 @@ def metrics(rows: list[dict], ceiling: str = CEILING) -> dict[str, dict]:
     for k, r in m.items():
         r["derived"] = k.startswith(DERIVED)
         if k.startswith(UNSCALED):
-            r.update(mae=math.nan, mae_lo=math.nan, mae_hi=math.nan)
+            r.update(mae=math.nan, mae_lo=math.nan, mae_hi=math.nan, alpha_ord=math.nan)
+            r["kappa_0.5"] = math.nan
     ref = m[best_usable(m, ceiling)]["_errs"]
     for r in m.values():
         r["mae_diff_p"] = bootstrap.diff_p(r.pop("_errs"), ref)
@@ -166,6 +177,9 @@ def main() -> None:  # pragma: no cover
     report.sync_readme(Path("README.md"), (a.out / "results.md").read_text())
     spec = disagreement.Spec(a.ceiling, a.top_disagreement)
     (a.out / "disagreement.md").write_text(disagreement.markdown(rows, m, spec))
+    report.write_agreement(
+        agreement.per_category(rows, a.ceiling), a.out / "agreement_by_category.md"
+    )
     report.print_details(rows, a.out)
 
 
