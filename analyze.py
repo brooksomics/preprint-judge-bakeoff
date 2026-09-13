@@ -15,6 +15,8 @@ Metrics, per model config:
               distribution can hide from MAE.
   latency_s   mean wall-clock seconds per call
   cost_usd    mean OpenRouter-reported cost per call that returned
+
+--top-disagreement N also writes results/disagreement.md (see disagreement.py).
 """
 
 from __future__ import annotations
@@ -126,7 +128,9 @@ def main() -> None:  # pragma: no cover
     ap.add_argument("--preprints", type=Path, default=Path("data/preprints.json"))
     ap.add_argument("--out", type=Path, default=Path("results"))
     ap.add_argument("--ceiling", default=CEILING)
+    ap.add_argument("--top-disagreement", type=int, default=10, help="rows in disagreement.md")
     a = ap.parse_args()
+    import disagreement
     import figures
     import report
 
@@ -134,10 +138,10 @@ def main() -> None:  # pragma: no cover
     m = metrics(rows, a.ceiling)
     report.write_tables(m, a.out)
     figures.plot_all(m, a.out, a.ceiling)
-    if Path("README.md").exists():
-        report.sync_readme(Path("README.md"), (a.out / "results.md").read_text())
-    print((a.out / "results.md").read_text())
-    report.print_details(rows)
+    report.sync_readme(Path("README.md"), (a.out / "results.md").read_text())
+    spec = disagreement.Spec(a.ceiling, a.top_disagreement)
+    (a.out / "disagreement.md").write_text(disagreement.markdown(rows, m, spec))
+    report.print_details(rows, a.out)
 
 
 if __name__ == "__main__":

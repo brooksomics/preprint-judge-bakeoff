@@ -20,6 +20,7 @@ fetch_preprints.py   bioRxiv API -> data/preprints.json (60 in-lane, 30 delibera
 judge.py             the one prompt every model sees, and the parser that decides coverage
 harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
 analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, README sync
+disagreement.py      the preprints the usable models split on most -> results/disagreement.md
 ```
 
 Metrics, per model config:
@@ -77,6 +78,15 @@ Reproduce with `uv run python analyze.py` against `data/results.jsonl`.
 
 ![MAE against measured cost per call](results/fig_mae_vs_cost.png)
 ![Coverage by model configuration](results/fig_coverage.png)
+
+## Where the models disagree
+
+MAE says how far a model sits from the ceiling on average. It says nothing about *which*
+papers it gets wrong, and those are the ones worth a human's time. [`results/disagreement.md`](results/disagreement.md)
+ranks the 90 preprints by the population std dev of the usable models' mean scores (the
+same >= 99% coverage set as the table, ceiling excluded), names the model at each extreme
+next to the ceiling's own score, and lists the mirror image: the preprints every model
+agrees on. Regenerate with `uv run python analyze.py --top-disagreement 10`.
 
 ## Run it
 

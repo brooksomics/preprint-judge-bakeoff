@@ -45,6 +45,8 @@ def write_tables(m: dict, out: Path) -> None:
 
 def sync_readme(readme: Path, table_md: str) -> None:
     """Replace the markdown table between the RESULTS markers with table_md; prose stays."""
+    if not readme.exists():
+        return
     text = readme.read_text()
     head, rest = text.split(MARK_START, 1)
     block, tail = rest.split(MARK_END, 1)
@@ -79,7 +81,8 @@ def violation_detail(rows: list[dict]) -> list[str]:
     ]
 
 
-def print_details(rows: list[dict]) -> None:
+def print_details(rows: list[dict], out: Path) -> None:
+    print((out / "results.md").read_text())
     print("Wrong-field detail (off-lane scored >= 0.5):")
     print("\n".join("  " + line for line in violation_detail(rows)) or "  none")
     print("\nProviders that did not return a score on every call:")
