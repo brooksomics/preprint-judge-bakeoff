@@ -67,6 +67,7 @@ def rows(preprints: Path, profile: Path) -> list[dict]:
             "lane": p["lane"],
             "title": p["title"],
             "category": p.get("category", ""),
+            "n_words": len(p["abstract"].split()),
             "latency_s": 0.0,
             "cost_usd": 0.0,
             "strict_json": True,

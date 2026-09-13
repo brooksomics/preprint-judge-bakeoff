@@ -35,7 +35,7 @@ def _per_item(rows: list[dict], components: tuple[str, ...]) -> tuple[dict, dict
     for r in rows:
         if r["label"] in components:
             runs[r["doi"]][r["label"]].append(r)
-            meta[r["doi"]] = {k: r.get(k) for k in ("lane", "title", "category")}
+            meta[r["doi"]] = {k: r.get(k) for k in ("lane", "title", "category", "n_words")}
     stats = {}
     for doi, by_label in runs.items():
         stats[doi] = {}

@@ -14,6 +14,7 @@ Metrics, per model config:
   kappa_0.5   Cohen's kappa on the decision score >= 0.5, model vs ceiling (agreement.py)
   alpha_ord   Krippendorff's alpha over 0.1 bins, squared bin distance, model vs ceiling
   kappa_top10 Cohen's kappa on membership in the top-10 shortlist
+  len_rho     Spearman(abstract word count, mean score): does the judge reward long abstracts?
   top10       of the ceiling's 10 highest-scoring preprints, how many are in the model's own
               top 10. The decision the triage step actually makes, which a compressed score
               distribution can hide from MAE.
@@ -35,6 +36,7 @@ from pathlib import Path
 
 import agreement
 import bootstrap
+import probes
 import rankstats
 
 CEILING = "anthropic/claude-sonnet-5"
@@ -52,6 +54,7 @@ COLUMNS = (
     "kappa_0.5",
     "alpha_ord",
     "kappa_top10",
+    "len_rho",
     "top10",
     "latency_s",
     "cost_usd",
@@ -66,9 +69,17 @@ UNSCALED = ("baseline:",)  # not a fit score: MAE against the ceiling is meaning
 
 
 def load_rows(results: Path, preprints: Path) -> list[dict]:
-    lane = {p["doi"]: p["lane"] for p in json.loads(preprints.read_text())}
+    """Harness rows with the preprint's lane and abstract word count attached."""
+    items = {p["doi"]: p for p in json.loads(preprints.read_text())}
     rows = [json.loads(line) for line in results.read_text().splitlines() if line.strip()]
-    return [{**r, "lane": lane.get(r["doi"], r.get("lane", "in"))} for r in rows]
+    return [
+        {
+            **r,
+            "lane": items.get(r["doi"], r).get("lane", "in"),
+            "n_words": len(items.get(r["doi"], {}).get("abstract", "").split()),
+        }
+        for r in rows
+    ]
 
 
 def _scores(runs: list[dict]) -> list[float]:
@@ -117,6 +128,7 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
         else math.nan,
         "violations": sum(1 for r in off if r["fit_score"] >= VIOLATION_AT),
         "sigma": st.mean(sig) if sig else math.nan,
+        "len_rho": probes.len_rho(by_item),
         **_agreement(_item_means(by_item), ceiling_means),
         "latency_s": st.mean([r.get("latency_s", 0.0) for r in runs]),
         "cost_usd": st.mean(costs) if costs else math.nan,
@@ -180,7 +192,7 @@ def main() -> None:  # pragma: no cover
     report.write_agreement(
         agreement.per_category(rows, a.ceiling), a.out / "agreement_by_category.md"
     )
-    report.print_details(rows, a.out)
+    report.print_details(rows, a.out, m)
 
 
 if __name__ == "__main__":

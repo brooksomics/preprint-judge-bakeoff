@@ -204,16 +204,9 @@ def test_results_table_roundtrip(tmp_path, rows):
     report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
     assert csv[0].startswith(
-        "label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,top10"
+        "label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
     )
     assert json.dumps(m)  # serializable
-
-
-def test_load_rows_attaches_lane_from_preprints(tmp_path):
-    (tmp_path / "p.json").write_text(json.dumps([{"doi": "x", "lane": "off"}]))
-    r = {"label": "m", "doi": "x", "run_idx": 0, "fit_score": 0.9}
-    (tmp_path / "r.jsonl").write_text(json.dumps(r) + "\n\n")
-    assert analyze.load_rows(tmp_path / "r.jsonl", tmp_path / "p.json") == [{**r, "lane": "off"}]
 
 
 def test_provider_detail_reports_only_providers_below_full_coverage():

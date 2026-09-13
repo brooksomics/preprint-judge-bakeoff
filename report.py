@@ -9,7 +9,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import agreement
-from analyze import COLUMNS, SHORTLIST, VIOLATION_AT
+import probes
+from analyze import CEILING, COLUMNS, SHORTLIST, VIOLATION_AT
 
 MARK_START, MARK_END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
 
@@ -42,6 +43,7 @@ def _cells(k: str, r: dict) -> list[str]:
         f"{r['spearman']:.2f}",
         _num(r["kappa_0.5"], ".2f"),
         _num(r["alpha_ord"], ".2f"),
+        _num(r["len_rho"], ".2f"),
         f"{r['top10']}/{SHORTLIST}",
         f"{r['latency_s']:.2f}",
         f"{r['cost_usd']:.5f}",
@@ -51,8 +53,8 @@ def _cells(k: str, r: dict) -> list[str]:
 def write_md(m: dict, path: Path) -> None:
     cols = "| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) |"
     md = [
-        f"{cols} rho | kappa | alpha | top-{SHORTLIST} | latency s | $/call |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        f"{cols} rho | kappa | alpha | len rho | top-{SHORTLIST} | latency s | $/call |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     md += ["| " + " | ".join(_cells(k, r)) + " |" for k, r in m.items()]
     path.write_text("\n".join(md) + "\n")
@@ -120,8 +122,11 @@ def violation_detail(rows: list[dict]) -> list[str]:
     ]
 
 
-def print_details(rows: list[dict], out: Path) -> None:
+def print_details(rows: list[dict], out: Path, m: dict | None = None) -> None:
     print((out / "results.md").read_text())
+    if m and CEILING in m:
+        flags = ", ".join(probes.flagged(m, CEILING)) or "none"
+        print(f"Length probe, rows > {probes.FLAG_AT} from the ceiling's len_rho: {flags}\n")
     print("Wrong-field detail (off-lane scored >= 0.5):")
     print("\n".join("  " + line for line in violation_detail(rows)) or "  none")
     print("\nProviders that did not return a score on every call:")
