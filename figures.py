@@ -11,6 +11,8 @@ from pathlib import Path
 
 import matplotlib
 
+from analyze import DERIVED
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
@@ -79,7 +81,7 @@ def plot_mae_vs_cost(m: dict, out: Path, ceiling: str) -> None:
 
 
 def plot_coverage(m: dict, out: Path, ceiling: str) -> None:
-    ks = sorted(m, key=lambda k: (-m[k]["cov"], k))
+    ks = sorted((k for k in m if not k.startswith(DERIVED)), key=lambda k: (-m[k]["cov"], k))
     fig, ax = plt.subplots(figsize=(7.5, 0.34 * len(ks) + 2.0), facecolor=SURFACE)
     _style(ax)
     colors = [REASONING if "@" in k else BASE for k in ks]

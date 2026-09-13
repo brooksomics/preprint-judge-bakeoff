@@ -2,6 +2,7 @@
 
 import io
 import json
+import math
 from datetime import date
 
 import pytest
@@ -59,6 +60,23 @@ def test_sync_readme_replaces_only_the_table(tmp_path):
     readme.write_text(frame.format("| a |\n|---|\n| 1 |"))
     report.sync_readme(readme, "| b |\n|---|\n| 2 |\n")
     assert readme.read_text() == frame.format("| b |\n|---|\n| 2 |")
+
+
+def test_derived_rows_get_no_mae_but_keep_rank_columns(rows, tmp_path):
+    rows += [row("baseline:x", d, 0, s) for d, s in (("a", 0.1), ("b", 0.9), ("c", 0.5))]
+    for r in rows:
+        r.setdefault("latency_s", 0.0)
+        r.setdefault("cost_usd", 0.0)
+    m = analyze.metrics(rows, CEILING)
+    b = m["baseline:x"]
+    assert all(math.isnan(b[k]) for k in ("mae", "mae_lo", "mae_hi"))
+    assert b["spearman"] == pytest.approx(-1.0) and b["top10"] >= 0  # ranks exactly reversed
+    assert analyze.best_usable(m, CEILING) == "m"  # derived rows are never the reference
+    report.write_tables(m, tmp_path)
+    line = next(
+        ln for ln in (tmp_path / "results.md").read_text().splitlines() if "baseline:x" in ln
+    )
+    assert "| n/a | n/a | n/a |" in line and "-1.00" in line  # sigma, MAE, P all n/a
 
 
 def test_ceiling_mae_is_zero(rows):
@@ -163,7 +181,9 @@ def test_results_table_roundtrip(tmp_path, rows):
     m = analyze.metrics(rows, CEILING)
     report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
-    assert csv[0].startswith("label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,top10")
+    assert csv[0].startswith(
+        "label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,top10"
+    )
     assert json.dumps(m)  # serializable
 
 

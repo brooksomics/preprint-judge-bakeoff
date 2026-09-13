@@ -10,6 +10,7 @@ Metrics, per model config:
   mae_lo/hi   95% bootstrap interval on mae: preprints resampled with replacement (bootstrap.py)
   mae_diff_p  paired bootstrap: share of resamples where this model's MAE <= the best usable
               model's (lowest MAE at >= USABLE_COV coverage). 1.0 for the reference itself.
+  spearman    rank correlation between the model's and the ceiling's per-preprint means
   top10       of the ceiling's 10 highest-scoring preprints, how many are in the model's own
               top 10. The decision the triage step actually makes, which a compressed score
               distribution can hide from MAE.
@@ -29,6 +30,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import bootstrap
+import rankstats
 
 CEILING = "anthropic/claude-sonnet-5"
 COLUMNS = (
@@ -41,6 +43,7 @@ COLUMNS = (
     "mae_lo",
     "mae_hi",
     "mae_diff_p",
+    "spearman",
     "top10",
     "latency_s",
     "cost_usd",
@@ -49,6 +52,7 @@ COLUMNS = (
 VIOLATION_AT = 0.5
 SHORTLIST = 10
 USABLE_COV = 99.0
+DERIVED = ("baseline:", "ens:")  # rows computed from other rows, not API calls
 
 
 def load_rows(results: Path, preprints: Path) -> list[dict]:
@@ -70,17 +74,21 @@ def shortlist(means: dict[str, float], n: int) -> set[str]:
     return {d for d, _ in sorted(means.items(), key=lambda kv: (-kv[1], kv[0]))[:n]}
 
 
-def _pct(hits: int, total: int) -> float:
-    return 100 * hits / total if total else math.nan
-
-
 def _agreement(means: dict, ceiling_means: dict) -> dict:
     """MAE with its bootstrap interval, top-N overlap, and the per-preprint errors (for pairing)."""
     errs = {d: abs(m - ceiling_means[d]) for d, m in means.items() if d in ceiling_means}
     lo, hi = bootstrap.mae_ci(errs)
     top = shortlist(means, SHORTLIST) & shortlist(ceiling_means, SHORTLIST)
     mae = st.mean(errs.values()) if errs else math.nan
-    return {"mae": mae, "mae_lo": lo, "mae_hi": hi, "top10": len(top), "_errs": errs}
+    rho = rankstats.spearman([means[d] for d in errs], [ceiling_means[d] for d in errs])
+    return {
+        "mae": mae,
+        "mae_lo": lo,
+        "mae_hi": hi,
+        "spearman": rho,
+        "top10": len(top),
+        "_errs": errs,
+    }
 
 
 def _one(by_item: dict, ceiling_means: dict) -> dict:
@@ -91,7 +99,9 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
     off = [r for r in scored if r["lane"] == "off"]
     return {
         "cov": 100 * len(scored) / len(runs),
-        "strict": _pct(sum(bool(r.get("strict_json")) for r in scored), len(scored)),
+        "strict": 100 * sum(bool(r.get("strict_json")) for r in scored) / len(scored)
+        if scored
+        else math.nan,
         "violations": sum(1 for r in off if r["fit_score"] >= VIOLATION_AT),
         "sigma": st.mean(sig) if sig else math.nan,
         **_agreement(_item_means(by_item), ceiling_means),
@@ -116,25 +126,33 @@ def metrics(rows: list[dict], ceiling: str = CEILING) -> dict[str, dict]:
         by_label[r["label"]][r["doi"]].append(r)
     ceiling_means = _item_means(by_label[ceiling])
     m = {label: _one(items, ceiling_means) for label, items in by_label.items()}
+    for k in [k for k in m if k.startswith(DERIVED)]:  # different scale: MAE is not comparable
+        m[k].update(mae=math.nan, mae_lo=math.nan, mae_hi=math.nan)
     ref = m[best_usable(m, ceiling)]["_errs"]
     for r in m.values():
         r["mae_diff_p"] = bootstrap.diff_p(r.pop("_errs"), ref)
     return dict(sorted(m.items(), key=lambda kv: (math.isnan(kv[1]["mae"]), kv[1]["mae"])))
 
 
-def main() -> None:  # pragma: no cover
+def _args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--results", type=Path, default=Path("data/results.jsonl"))
     ap.add_argument("--preprints", type=Path, default=Path("data/preprints.json"))
+    ap.add_argument("--profile", type=Path, default=Path("profile.md"))
     ap.add_argument("--out", type=Path, default=Path("results"))
     ap.add_argument("--ceiling", default=CEILING)
     ap.add_argument("--top-disagreement", type=int, default=10, help="rows in disagreement.md")
-    a = ap.parse_args()
+    return ap.parse_args()
+
+
+def main() -> None:  # pragma: no cover
+    import baseline
     import disagreement
     import figures
     import report
 
-    rows = load_rows(a.results, a.preprints)
+    a = _args()
+    rows = load_rows(a.results, a.preprints) + baseline.rows(a.preprints, a.profile)
     m = metrics(rows, a.ceiling)
     report.write_tables(m, a.out)
     figures.plot_all(m, a.out, a.ceiling)
