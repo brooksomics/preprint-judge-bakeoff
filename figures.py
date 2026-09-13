@@ -45,8 +45,11 @@ def _legend(ax, **kw) -> None:
 def _scatter_points(ax, pts: list[tuple[str, dict]]) -> None:
     for k, r in pts:
         color = REASONING if "@" in k else BASE
-        ax.scatter(r["cost_usd"], r["mae"], s=70, color=color, edgecolor=SURFACE, lw=2, zorder=3)
         xy = (r["cost_usd"], r["mae"])
+        if not math.isnan(r["mae_lo"] + r["mae_hi"]):
+            err = [[r["mae"] - r["mae_lo"]], [r["mae_hi"] - r["mae"]]]
+            ax.errorbar(*xy, yerr=err, fmt="none", ecolor=color, elinewidth=1, alpha=0.6, zorder=2)
+        ax.scatter(*xy, s=70, color=color, edgecolor=SURFACE, lw=2, zorder=3)
         ax.annotate(
             _short(k), xy, xytext=(6, 4), textcoords="offset points", fontsize=7.5, color=INK
         )

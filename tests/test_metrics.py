@@ -9,6 +9,7 @@ import pytest
 import analyze
 import fetch_preprints
 import judge
+import report
 
 CEILING = "ceiling/model"
 
@@ -41,6 +42,23 @@ def rows():
 def test_mae_vs_ceiling_is_mean_abs_diff_of_item_means(rows):
     m = analyze.metrics(rows, CEILING)["m"]
     assert m["mae"] == pytest.approx((0.2 + 0.4) / 2)  # item c has no score -> excluded
+
+
+def test_mae_interval_brackets_mae_and_reference_has_p_one(rows):
+    m = analyze.metrics(rows, CEILING)
+    assert m["m"]["mae_lo"] <= m["m"]["mae"] <= m["m"]["mae_hi"]
+    assert m[CEILING]["mae_lo"] == m[CEILING]["mae_hi"] == 0.0
+    # "m" is the only challenger, so it is its own reference (fallback: nothing at >= 99% cov)
+    assert analyze.best_usable(m, CEILING) == "m" and m["m"]["mae_diff_p"] == 1.0
+    assert m[CEILING]["mae_diff_p"] == 1.0  # the ceiling beats everything in every resample
+
+
+def test_sync_readme_replaces_only_the_table(tmp_path):
+    readme = tmp_path / "README.md"
+    frame = "intro\n<!-- RESULTS:START -->\nprose\n{}\n\nmore\n<!-- RESULTS:END -->\ntail\n"
+    readme.write_text(frame.format("| a |\n|---|\n| 1 |"))
+    report.sync_readme(readme, "| b |\n|---|\n| 2 |\n")
+    assert readme.read_text() == frame.format("| b |\n|---|\n| 2 |")
 
 
 def test_ceiling_mae_is_zero(rows):
@@ -143,9 +161,9 @@ def test_results_table_roundtrip(tmp_path, rows):
         r.setdefault("latency_s", 1.0)
         r.setdefault("cost_usd", 0.001)
     m = analyze.metrics(rows, CEILING)
-    analyze.write_tables(m, tmp_path)
+    report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
-    assert csv[0].startswith("label,cov,strict,violations,sigma,mae,top10,latency_s,cost_usd")
+    assert csv[0].startswith("label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,top10")
     assert json.dumps(m)  # serializable
 
 
@@ -162,14 +180,14 @@ def test_provider_detail_reports_only_providers_below_full_coverage():
         {"label": "m", "provider": "Bad", "fit_score": None, "reasoning_tokens": 80},
         {"label": "m", "provider": "Bad", "fit_score": 0.4, "reasoning_tokens": 120},
     ]
-    out = analyze.provider_detail(rows)
+    out = report.provider_detail(rows)
     assert out == ["m via Bad: 50.0% of 2 calls, mean 100 reasoning tok"]
 
 
 def test_violation_detail_lists_off_lane_hits(rows):
     for r in rows:
         r.setdefault("category", "neuroscience")
-    lines = analyze.violation_detail(rows)
+    lines = report.violation_detail(rows)
     assert len(lines) == 2 and all(line.startswith("m: ") for line in lines)
 
 
