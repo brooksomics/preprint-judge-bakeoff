@@ -6,3 +6,5 @@ __pycache__/
 .env.*
 !.env.example
 data/smoke.jsonl
+# your own medRxiv pull; the published set is data/preprints.json
+data/preprints_medrxiv.json

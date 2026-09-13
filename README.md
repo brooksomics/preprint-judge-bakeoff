@@ -16,7 +16,7 @@ write-up is
 ## What it does
 
 ```
-fetch_preprints.py   bioRxiv API -> data/preprints.json (60 in-lane, 30 deliberately off-lane)
+fetch_preprints.py   bioRxiv API -> data/preprints.json (60 in-lane, 30 deliberately off-lane); --server medrxiv
 judge.py             the one prompt every model sees, and the parser that decides coverage
 harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
 analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, README sync
@@ -192,7 +192,11 @@ Thresholds are yours to set; the defaults above are the ones the current winner 
 
 1. Edit `profile.md`. Say what you read, what you skip, and why. ~200 words is plenty.
 2. Edit `IN_LANE` / `OFF_LANE` in `fetch_preprints.py` to bioRxiv categories that match.
-   Off-lane papers give the wrong-field metric teeth: keep some.
+   Off-lane papers give the wrong-field metric teeth: keep some. Clinical reader? The same
+   API serves medRxiv: `uv run python fetch_preprints.py --server medrxiv` uses the
+   `MED_IN_LANE` / `MED_OFF_LANE` sets and writes `data/preprints_medrxiv.json`, leaving the
+   published bioRxiv set untouched; point `harness.py` and `analyze.py` at it with
+   `--preprints`.
 3. Edit `MODELS` in `harness.py`. Check ids against `https://openrouter.ai/api/v1/models`
    first; the roster here was verified 2026-09-11.
 

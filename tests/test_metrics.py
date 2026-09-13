@@ -284,10 +284,37 @@ def test_fetch_category_pages_until_total(monkeypatch):
         return pages[int(url.rsplit("/", 1)[1].split("?")[0])]
 
     monkeypatch.setattr(fetch_preprints, "_get", fake_get)
-    window = (date(2026, 9, 1), date(2026, 9, 10))
+    window = fetch_preprints.Window(date(2026, 9, 1), date(2026, 9, 10))
     rows = fetch_preprints.fetch_category("plant biology", window, 100)
     assert len(rows) == 35 and len(calls) == 2 and "category=plant_biology" in calls[0]
+    assert "/details/biorxiv/2026-09-01/2026-09-10/0?" in calls[0]
     assert len(fetch_preprints.fetch_category("plant biology", window, 10)) == 10
+    med = fetch_preprints.Window(date(2026, 9, 1), date(2026, 9, 10), "medrxiv")
+    fetch_preprints.fetch_category("health informatics", med, 5)
+    assert "/details/medrxiv/2026-09-01/2026-09-10/0?category=health_informatics" in calls[-1]
+
+
+def test_lanes_per_server_and_stratify_knows_medrxiv_in_lane():
+    assert fetch_preprints.LANES["biorxiv"] == (fetch_preprints.IN_LANE, fetch_preprints.OFF_LANE)
+    med_in, med_off = fetch_preprints.LANES["medrxiv"]
+    assert "health informatics" in med_in and not (med_in & med_off)
+    items = [{"doi": "1", "category": "health informatics", "version": "1"}]
+    assert fetch_preprints.stratify(items, med_in, 1)[0]["lane"] == "in"
+    assert fetch_preprints.stratify(items, med_off, 1) == []
+
+
+def test_slim_keeps_server():
+    row = {
+        "doi": "d",
+        "title": "t",
+        "abstract": "a",
+        "category": "c",
+        "date": "x",
+        "version": "1",
+        "server": "medRxiv",
+        "jatsxml": "drop me",
+    }
+    assert fetch_preprints.slim(row) == {k: row[k] for k in (*fetch_preprints.FIELDS, "server")}
 
 
 class _Resp:
