@@ -3,6 +3,8 @@
 Metrics, per model config:
   cov         % of calls that returned a parseable 0-1 score (timeouts, bad JSON count against)
   strict      % of those whose whole body was clean JSON, nothing before or after it
+  cov_*       the parser ladder, % of ALL calls parseable at or below each rung: strict
+              (json.loads), lenient (first object; == cov today), repaired (json_repair)
   violations  CALLS on an off-lane preprint scored >= 0.5. Counts calls, not preprints: a
               preprint misjudged on all 3 repeats contributes 3.
   sigma       mean over preprints of the std dev across the 3 repeats (repeatability)
@@ -36,6 +38,7 @@ from pathlib import Path
 
 import agreement
 import bootstrap
+import judge
 import probes
 import rankstats
 
@@ -44,6 +47,9 @@ COLUMNS = (
     "label",
     "cov",
     "strict",
+    "cov_strict",
+    "cov_lenient",
+    "cov_repaired",
     "violations",
     "sigma",
     "mae",
@@ -77,6 +83,7 @@ def load_rows(results: Path, preprints: Path) -> list[dict]:
             **r,
             "lane": items.get(r["doi"], r).get("lane", "in"),
             "n_words": len(items.get(r["doi"], {}).get("abstract", "").split()),
+            "parse_tier": judge.tier_of(r.get("raw")),
         }
         for r in rows
     ]
@@ -128,6 +135,7 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
         else math.nan,
         "violations": sum(1 for r in off if r["fit_score"] >= VIOLATION_AT),
         "sigma": st.mean(sig) if sig else math.nan,
+        **judge.coverage_ladder(runs),
         "len_rho": probes.len_rho(by_item),
         **_agreement(_item_means(by_item), ceiling_means),
         "latency_s": st.mean([r.get("latency_s", 0.0) for r in runs]),

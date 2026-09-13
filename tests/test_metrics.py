@@ -145,7 +145,13 @@ def test_sigma_is_mean_of_per_item_stdev(rows):
 def test_parse_accepts_fenced_json_and_clamps_nothing():
     raw = '```json\n{"fit_score": 0.73, "field": "genomics", "rationale": "ok"}\n```'
     got = judge.parse(raw)
-    assert got == {"fit_score": 0.73, "field": "genomics", "rationale": "ok", "strict_json": False}
+    assert got == {
+        "fit_score": 0.73,
+        "field": "genomics",
+        "rationale": "ok",
+        "strict_json": False,
+        "parse_tier": "lenient",
+    }
 
 
 def test_parse_takes_first_object_and_flags_trailing_output():
@@ -153,12 +159,50 @@ def test_parse_takes_first_object_and_flags_trailing_output():
     one = '{"fit_score": 0.4, "field": "x", "rationale": "y"}'
     assert judge.parse(one)["strict_json"] is True
     dup = judge.parse(f"{one}\n\nWait, let me redo that.\n{one}")
-    assert dup["fit_score"] == 0.4 and dup["strict_json"] is False
+    assert (
+        dup["fit_score"] == 0.4 and dup["strict_json"] is False and dup["parse_tier"] == "lenient"
+    )
 
 
-def test_parse_rejects_trailing_comma_which_is_not_json():
+def test_parse_ladder_strict_lenient_repaired():
+    clean = '{"fit_score": 0.4, "field": "x", "rationale": "y"}'
+    assert judge.parse(clean)["parse_tier"] == "strict"
+    assert judge.parse(f"```json\n{clean}\n```")["parse_tier"] == "lenient"
+    # lifted from data/results.jsonl: a trailing comma, and an invalid control character
+    comma = judge.parse('{"fit_score": 0.15, "field": "x", }')
+    assert comma["fit_score"] == 0.15 and comma["parse_tier"] == "repaired"
+    assert comma["strict_json"] is False
+    ctrl = judge.parse('{"fit_score": 0.05, "field": "h", "rationale": "line one\x01line two"}')
+    assert ctrl["parse_tier"] == "repaired" and ctrl["fit_score"] == 0.05
+    # a missing quote before the next key, the Mercury 2.5 shape
+    mercury = judge.parse('{"fit_score": 0.85, "field": "Population-scale, "rationale": "r"}')
+    assert mercury["parse_tier"] == "repaired" and mercury["fit_score"] == 0.85
+
+
+def test_parse_repair_does_not_invent_a_score():
     with pytest.raises(ValueError):
-        judge.parse('{"fit_score": 0.15, "field": "x", }')
+        judge.parse('{"": 0.7, "field": "spatial transcriptomics"}')  # well-formed, no fit_score
+    with pytest.raises(ValueError):
+        judge.parse('{"fit_score":": 0.0","field":"x"}')  # repairs to a non-numeric score
+
+
+def test_tier_of_returns_none_when_nothing_parses():
+    assert judge.tier_of("{}") is None and judge.tier_of("") is None and judge.tier_of(None) is None
+    assert judge.tier_of('{"fit_score": 0.2}') == "strict"
+
+
+def test_coverage_ladder_percentages():
+    runs = [
+        {"raw": "x", "parse_tier": t} for t in ("strict", "strict", "lenient", "repaired", None)
+    ]
+    assert judge.coverage_ladder(runs) == {
+        "cov_strict": 40.0,
+        "cov_lenient": 60.0,
+        "cov_repaired": 80.0,
+    }
+    assert all(
+        math.isnan(v) for v in judge.coverage_ladder([{"fit_score": 0.1}]).values()
+    )  # no raw
 
 
 @pytest.mark.parametrize("raw", ["not json", '{"field": "x"}', '{"fit_score": 1.7}', "", "[1, 2]"])
@@ -204,7 +248,7 @@ def test_results_table_roundtrip(tmp_path, rows):
     report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
     assert csv[0].startswith(
-        "label,cov,strict,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
+        "label,cov,strict,cov_strict,cov_lenient,cov_repaired,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
     )
     assert json.dumps(m)  # serializable
 

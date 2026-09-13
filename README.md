@@ -32,6 +32,7 @@ Metrics, per model config:
 | metric             | meaning                                                                                                                          |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | **cov%**           | calls that returned a parseable 0-1 score. Timeouts, bad JSON, and empty content count against it.                               |
+| **ladder**         | the parser ladder: % of all calls parseable as clean JSON (strict), as the first JSON object in the body (lenient, the headline cov%), and after `json_repair` fixes a trailing comma, control character or missing quote (repaired). The score is never repaired: no numeric `fit_score` in [0, 1] means uncovered on every rung. |
 | **wrong-field**    | calls on an off-lane preprint scored >= 0.5. Counts calls, not preprints: one preprint misjudged on all 3 repeats contributes 3. |
 | **sigma**          | mean per-preprint std dev across the 3 repeats. Repeatability.                                                                   |
 | **MAE vs ceiling** | mean over preprints of \|model mean - ceiling mean\|. Agreement with the frontier model. The bracket is a 95% bootstrap interval: the 90 preprints resampled with replacement 2,000 times (seed 0), percentile method. |
@@ -51,27 +52,27 @@ Metrics, per model config:
 Run of 2026-09-11, re-scored 2026-09-12 after the `message.reasoning` fix: 90 preprints x 15
 model configurations x 3 repeats = 4,050 calls, $2.19 measured, of which $1.06 was the ceiling.
 
-| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) | rho | kappa | alpha | len rho | top-10 | latency s | $/call |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| anthropic/claude-sonnet-5 | 94.4 | 97.3 | 0 | 0.011 | 0.000 [0.000, 0.000] | 1.00 | 1.00 | 1.00 | 1.00 | 0.05 | 10/10 | 3.25 | 0.00394 |
-| minimax/minimax-m3@low | 96.3 | 91.2 | 1 | 0.057 | 0.072 [0.054, 0.092] | 0.96 | 0.91 | 0.46 | 0.79 | 0.08 | 6/10 | 4.33 | 0.00027 |
-| _ens:hy3+deepseek-v4-flash-0731@medium+mimo-v2.5_ | 100.0 | 100.0 | 0 | n/a | 0.085 [0.067, 0.105] | 0.66 | 0.91 | 0.46 | 0.73 | 0.07 | 6/10 | 14.66 | 0.00026 |
-| tencent/hy3 | 100.0 | 100.0 | 0 | 0.033 | 0.088 [0.068, 0.109] | 1.00 | 0.89 | 0.36 | 0.72 | 0.10 | 5/10 | 4.22 | 0.00006 |
-| deepseek/deepseek-v4-flash-0731@medium | 99.6 | 100.0 | 1 | 0.047 | 0.092 [0.073, 0.112] | 0.35 | 0.90 | 0.54 | 0.70 | 0.05 | 6/10 | 13.89 | 0.00013 |
-| _ens:hy3+mimo-v2.5+mercury-2.5_ | 100.0 | 100.0 | 0 | n/a | 0.093 [0.074, 0.113] | 0.20 | 0.91 | 0.36 | 0.68 | 0.07 | 7/10 | 6.78 | 0.00020 |
-| deepseek/deepseek-v4-flash-0731@low | 100.0 | 100.0 | 1 | 0.058 | 0.096 [0.077, 0.116] | 0.19 | 0.89 | 0.54 | 0.69 | 0.07 | 6/10 | 16.77 | 0.00014 |
-| minimax/minimax-m3 | 97.0 | 100.0 | 1 | 0.054 | 0.099 [0.076, 0.123] | 0.16 | 0.92 | 0.38 | 0.69 | 0.07 | 8/10 | 2.46 | 0.00021 |
-| xiaomi/mimo-v2.5 | 100.0 | 100.0 | 2 | 0.065 | 0.103 [0.080, 0.125] | 0.06 | 0.88 | 0.43 | 0.66 | 0.09 | 6/10 | 5.55 | 0.00007 |
-| _ens:hy3+gemini-3.5-flash-lite+deepseek-v4.1-flash_ | 100.0 | 100.0 | 0 | n/a | 0.106 [0.087, 0.127] | 0.00 | 0.91 | 0.46 | 0.71 | 0.10 | 9/10 | 6.00 | 0.00075 |
-| qwen/qwen3.8-flash | 99.6 | 100.0 | 1 | 0.063 | 0.118 [0.090, 0.149] | 0.00 | 0.87 | 0.33 | 0.61 | 0.09 | 5/10 | 1.89 | 0.00010 |
-| inception/mercury-2.5 | 99.3 | 99.6 | 0 | 0.062 | 0.120 [0.099, 0.143] | 0.00 | 0.90 | 0.33 | 0.59 | 0.08 | 6/10 | 0.89 | 0.00007 |
-| google/gemini-3.5-flash-lite | 100.0 | 100.0 | 0 | 0.015 | 0.124 [0.096, 0.154] | 0.00 | 0.88 | 0.50 | 0.62 | 0.03 | 7/10 | 1.06 | 0.00044 |
-| anthropic/claude-haiku-4.5 | 100.0 | 0.0 | 0 | 0.010 | 0.136 [0.117, 0.158] | 0.00 | 0.90 | 0.50 | 0.65 | 0.17 | 7/10 | 2.35 | 0.00161 |
-| deepseek/deepseek-v4.1-flash | 100.0 | 100.0 | 3 | 0.061 | 0.140 [0.116, 0.165] | 0.00 | 0.91 | 0.40 | 0.58 | 0.12 | 8/10 | 4.43 | 0.00025 |
-| z-ai/glm-5.3-flash | 100.0 | 97.4 | 0 | 0.035 | 0.147 [0.124, 0.169] | 0.00 | 0.93 | 0.40 | 0.53 | 0.12 | 7/10 | 11.48 | 0.00050 |
-| deepseek/deepseek-v4-flash-0731 | 100.0 | 100.0 | 3 | 0.081 | 0.158 [0.135, 0.182] | 0.00 | 0.90 | 0.43 | 0.46 | 0.04 | 6/10 | 4.33 | 0.00008 |
-| openai/gpt-5.6-luna | 100.0 | 100.0 | 2 | 0.024 | 0.181 [0.143, 0.222] | 0.00 | 0.93 | 0.25 | 0.43 | 0.17 | 5/10 | 1.80 | 0.00027 |
-| _baseline:tfidf_ | 100.0 | 100.0 | 2 | n/a | n/a | n/a | 0.56 | n/a | n/a | 0.29 | 4/10 | 0.00 | 0.00000 |
+| model | cov% | strict% | ladder strict / lenient / repaired | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) | rho | kappa | alpha | len rho | top-10 | latency s | $/call |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| anthropic/claude-sonnet-5 | 94.4 | 97.3 | 91.9 / 94.4 / 95.6 | 0 | 0.011 | 0.000 [0.000, 0.000] | 1.00 | 1.00 | 1.00 | 1.00 | 0.05 | 10/10 | 3.25 | 0.00394 |
+| minimax/minimax-m3@low | 96.3 | 91.2 | 87.4 / 95.9 / 95.9 | 1 | 0.057 | 0.072 [0.054, 0.092] | 0.96 | 0.91 | 0.46 | 0.79 | 0.08 | 6/10 | 4.33 | 0.00027 |
+| _ens:hy3+deepseek-v4-flash-0731@medium+mimo-v2.5_ | 100.0 | 100.0 | n/a / n/a / n/a | 0 | n/a | 0.085 [0.067, 0.105] | 0.66 | 0.91 | 0.46 | 0.73 | 0.07 | 6/10 | 14.66 | 0.00026 |
+| tencent/hy3 | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 0 | 0.033 | 0.088 [0.068, 0.109] | 1.00 | 0.89 | 0.36 | 0.72 | 0.10 | 5/10 | 4.22 | 0.00006 |
+| deepseek/deepseek-v4-flash-0731@medium | 99.6 | 100.0 | 99.6 / 99.6 / 99.6 | 1 | 0.047 | 0.092 [0.073, 0.112] | 0.35 | 0.90 | 0.54 | 0.70 | 0.05 | 6/10 | 13.89 | 0.00013 |
+| _ens:hy3+mimo-v2.5+mercury-2.5_ | 100.0 | 100.0 | n/a / n/a / n/a | 0 | n/a | 0.093 [0.074, 0.113] | 0.20 | 0.91 | 0.36 | 0.68 | 0.07 | 7/10 | 6.78 | 0.00020 |
+| deepseek/deepseek-v4-flash-0731@low | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 1 | 0.058 | 0.096 [0.077, 0.116] | 0.19 | 0.89 | 0.54 | 0.69 | 0.07 | 6/10 | 16.77 | 0.00014 |
+| minimax/minimax-m3 | 97.0 | 100.0 | 97.0 / 97.0 / 97.0 | 1 | 0.054 | 0.099 [0.076, 0.123] | 0.16 | 0.92 | 0.38 | 0.69 | 0.07 | 8/10 | 2.46 | 0.00021 |
+| xiaomi/mimo-v2.5 | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 2 | 0.065 | 0.103 [0.080, 0.125] | 0.06 | 0.88 | 0.43 | 0.66 | 0.09 | 6/10 | 5.55 | 0.00007 |
+| _ens:hy3+gemini-3.5-flash-lite+deepseek-v4.1-flash_ | 100.0 | 100.0 | n/a / n/a / n/a | 0 | n/a | 0.106 [0.087, 0.127] | 0.00 | 0.91 | 0.46 | 0.71 | 0.10 | 9/10 | 6.00 | 0.00075 |
+| qwen/qwen3.8-flash | 99.6 | 100.0 | 100.0 / 100.0 / 100.0 | 1 | 0.063 | 0.118 [0.090, 0.149] | 0.00 | 0.87 | 0.33 | 0.61 | 0.09 | 5/10 | 1.89 | 0.00010 |
+| inception/mercury-2.5 | 99.3 | 99.6 | 98.9 / 99.3 / 100.0 | 0 | 0.062 | 0.120 [0.099, 0.143] | 0.00 | 0.90 | 0.33 | 0.59 | 0.08 | 6/10 | 0.89 | 0.00007 |
+| google/gemini-3.5-flash-lite | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 0 | 0.015 | 0.124 [0.096, 0.154] | 0.00 | 0.88 | 0.50 | 0.62 | 0.03 | 7/10 | 1.06 | 0.00044 |
+| anthropic/claude-haiku-4.5 | 100.0 | 0.0 | 0.0 / 100.0 / 100.0 | 0 | 0.010 | 0.136 [0.117, 0.158] | 0.00 | 0.90 | 0.50 | 0.65 | 0.17 | 7/10 | 2.35 | 0.00161 |
+| deepseek/deepseek-v4.1-flash | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 3 | 0.061 | 0.140 [0.116, 0.165] | 0.00 | 0.91 | 0.40 | 0.58 | 0.12 | 8/10 | 4.43 | 0.00025 |
+| z-ai/glm-5.3-flash | 100.0 | 97.4 | 97.4 / 100.0 / 100.0 | 0 | 0.035 | 0.147 [0.124, 0.169] | 0.00 | 0.93 | 0.40 | 0.53 | 0.12 | 7/10 | 11.48 | 0.00050 |
+| deepseek/deepseek-v4-flash-0731 | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 3 | 0.081 | 0.158 [0.135, 0.182] | 0.00 | 0.90 | 0.43 | 0.46 | 0.04 | 6/10 | 4.33 | 0.00008 |
+| openai/gpt-5.6-luna | 100.0 | 100.0 | 100.0 / 100.0 / 100.0 | 2 | 0.024 | 0.181 [0.143, 0.222] | 0.00 | 0.93 | 0.25 | 0.43 | 0.17 | 5/10 | 1.80 | 0.00027 |
+| _baseline:tfidf_ | 100.0 | 100.0 | n/a / n/a / n/a | 2 | n/a | n/a | n/a | 0.56 | n/a | n/a | 0.29 | 4/10 | 0.00 | 0.00000 |
 
 Among configurations at >= 99% coverage, `tencent/hy3` has both the best agreement and the
 lowest price, so it is the reference for the `P(<= best)` column. Read that column before
@@ -209,10 +210,16 @@ already exist, so a crashed or budget-stopped run picks up where it left off.
   null, with or without a `reasoning` parameter in the request. Reading only `content` booked 77
   complete answers in this run as coverage failures and scored that model at 79.6% instead of
   97.0%. `harness.unpack` now falls back to `reasoning` and records `content_field`.
-- **A parseable score is not clean JSON.** Claude Haiku 4.5 wrapped all 270 of its
-  JSON-mode responses in a ` ```json ` markdown fence, so a bare `json.loads()`
-  scores it at 0% coverage. `judge.parse` takes the first JSON object in the body and
-  records `strict_json` separately; the table reports both.
+- **A parseable score is not clean JSON, so the parser is a ladder.** Claude Haiku 4.5 wrapped
+  all 270 of its JSON-mode responses in a ` ```json ` markdown fence, so a bare `json.loads()`
+  scores it at 0% coverage. `judge.parse` tries strict `json.loads`, then the first JSON object
+  in the body, then [`json_repair`](https://github.com/mangiucugna/json_repair), and records
+  which rung answered as `parse_tier`. The headline `cov%` is the lenient rung, so the numbers
+  the write-up quotes do not move; the `ladder` column shows all three. In this run the repair
+  rung recovers the ceiling's own three parse failures (two control characters, one trailing
+  comma) and two Mercury 2.5 bodies; everything else that failed was well-formed JSON with no
+  `fit_score` key, which no repair can supply. The harness stores at most 2,000 characters of
+  each body, so a few long responses cannot be re-parsed post hoc; `analyze.py` prints how many.
 - The ceiling is scored with the same 3 repeats, so its row shows its own sigma and
   how many "wrong-field" calls the ceiling itself makes.
 

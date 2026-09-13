@@ -1,9 +1,20 @@
-"""The judge: one prompt for every model, plus the parser that decides coverage."""
+"""The judge: one prompt for every model, plus the parser that decides coverage.
+
+Coverage is a property of the parser, so the parser is a ladder and every result says which
+rung it needed:
+  strict    the whole body was one JSON object (json.loads)
+  lenient   the first JSON object in the body, fences and trailing chatter ignored
+  repaired  json_repair fixed a trailing comma, a control character, a missing quote
+The score itself is never repaired: a body with no numeric fit_score in [0, 1] fails on every rung.
+"""
 
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
+
+import json_repair
 
 PROFILE_PATH = Path(__file__).with_name("profile.md")
 
@@ -80,17 +91,58 @@ def _score_of(obj: dict) -> float:
     return score
 
 
+def _ladder(text: str) -> tuple[dict, str, str]:
+    """(object, trailing text, tier) from the first rung that yields a JSON object."""
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict):
+            return obj, "", "strict"
+    except json.JSONDecodeError:
+        pass
+    try:
+        obj, trailing = _first_object(text)
+        return obj, trailing, "lenient"
+    except (json.JSONDecodeError, ValueError):
+        pass
+    obj = json_repair.repair_json(text, return_objects=True)
+    if not isinstance(obj, dict) or not obj:
+        raise ValueError("not JSON, and not repairable into an object")
+    return obj, "", "repaired"
+
+
 def parse(raw: str) -> dict:
     """Strict on the score, lenient on wrapping. Anything that raises here counts as uncovered."""
     text = (raw or "").strip()
-    try:
-        obj, trailing = _first_object(text)
-    except (json.JSONDecodeError, ValueError) as e:
-        raise ValueError(f"not JSON: {e}") from e
+    obj, trailing, tier = _ladder(text)
     score = _score_of(obj)
     return {
         "fit_score": score,
         "field": str(obj.get("field", "")),
         "rationale": str(obj.get("rationale", "")),
-        "strict_json": not trailing and text.startswith("{"),
+        "strict_json": tier == "strict" and not trailing,
+        "parse_tier": tier,
+    }
+
+
+def tier_of(raw: str | None) -> str | None:
+    """Which rung a stored body parses on, or None. Post-hoc re-parse for the coverage ladder."""
+    try:
+        return parse(raw or "")["parse_tier"]
+    except ValueError:
+        return None
+
+
+def coverage_ladder(runs: list[dict]) -> dict[str, float]:
+    """% of calls parseable at or below each rung; NaN for rows that carry no raw body."""
+    tiers = [r.get("parse_tier") for r in runs if "raw" in r]
+    if not tiers:
+        return dict.fromkeys(("cov_strict", "cov_lenient", "cov_repaired"), math.nan)
+    n = len(tiers)
+    strict = sum(t == "strict" for t in tiers)
+    lenient = strict + sum(t == "lenient" for t in tiers)
+    repaired = lenient + sum(t == "repaired" for t in tiers)
+    return {
+        "cov_strict": 100 * strict / n,
+        "cov_lenient": 100 * lenient / n,
+        "cov_repaired": 100 * repaired / n,
     }

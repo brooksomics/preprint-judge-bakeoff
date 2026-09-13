@@ -36,6 +36,7 @@ def _cells(k: str, r: dict) -> list[str]:
         f"_{k}_" if r["derived"] else k,
         f"{r['cov']:.1f}",
         f"{r['strict']:.1f}",
+        " / ".join(_num(r[c], ".1f") for c in ("cov_strict", "cov_lenient", "cov_repaired")),
         str(r["violations"]),
         _num(r["sigma"], ".3f"),
         mae,
@@ -51,10 +52,11 @@ def _cells(k: str, r: dict) -> list[str]:
 
 
 def write_md(m: dict, path: Path) -> None:
-    cols = "| model | cov% | strict% | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) |"
+    cols = "| model | cov% | strict% | ladder strict / lenient / repaired | wrong-field | sigma "
+    cols += "| MAE vs ceiling [95% CI] | P(<= best) |"
     md = [
         f"{cols} rho | kappa | alpha | len rho | top-{SHORTLIST} | latency s | $/call |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     md += ["| " + " | ".join(_cells(k, r)) + " |" for k, r in m.items()]
     path.write_text("\n".join(md) + "\n")
@@ -126,7 +128,9 @@ def print_details(rows: list[dict], out: Path, m: dict | None = None) -> None:
     print((out / "results.md").read_text())
     if m and CEILING in m:
         flags = ", ".join(probes.flagged(m, CEILING)) or "none"
-        print(f"Length probe, rows > {probes.FLAG_AT} from the ceiling's len_rho: {flags}\n")
+        print(f"Length probe, rows > {probes.FLAG_AT} from the ceiling's len_rho: {flags}")
+    trunc = sum(len(r.get("raw") or "") >= 2000 for r in rows)
+    print(f"Raw bodies truncated at 2000 chars by the harness (not re-parseable): {trunc}\n")
     print("Wrong-field detail (off-lane scored >= 0.5):")
     print("\n".join("  " + line for line in violation_detail(rows)) or "  none")
     print("\nProviders that did not return a score on every call:")

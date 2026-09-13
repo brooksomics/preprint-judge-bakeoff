@@ -40,4 +40,4 @@ def test_load_rows_attaches_abstract_word_count(tmp_path):
     r = {"label": "m", "doi": "x", "run_idx": 0, "fit_score": 0.9}
     (tmp_path / "r.jsonl").write_text(json.dumps(r) + "\n")
     got = analyze.load_rows(tmp_path / "r.jsonl", tmp_path / "p.json")
-    assert got == [{**r, "lane": "off", "n_words": 3}]
+    assert got == [{**r, "lane": "off", "n_words": 3, "parse_tier": None}]
