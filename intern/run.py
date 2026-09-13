@@ -3,6 +3,9 @@
     uv run python -m intern --dry-run     # render the digest to stdout, send nothing
     uv run python -m intern               # what launchd runs every Thursday; sends only if due
 
+The OpenRouter key comes from the environment, or from the credentials file when nothing
+exported it (see intern.credentials.ensure_api_key): launchd starts no shell.
+
 launchd has no biweekly primitive, so the plist fires weekly and `due()` refuses to send when
 the last digest went out under MIN_GAP_DAYS ago. Budget guard: abort before scoring if the
 estimated cost exceeds BUDGET_USD, and again after if the measured cost did.
@@ -96,6 +99,7 @@ def _args(argv: list[str] | None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     a = _args(argv)
+    credentials.ensure_api_key()
     seen, today = load_seen(STATE[0]), date.today()
     if not a.dry_run and not due(seen, today):
         print(f"not due: last digest {seen['last_sent']}, gap < {MIN_GAP_DAYS} days")

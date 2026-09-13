@@ -125,14 +125,15 @@ already exist, so a crashed or budget-stopped run picks up where it left off.
 it pulls the last two weeks of in-lane bioRxiv preprints, drops the DOIs it has already sent,
 scores each once with the gate-approved model (`tencent/hy3`, reasoning off, about half a cent
 per run), and emails the top five to your own inbox over Gmail SMTP. It runs locally under
-launchd, so the Gmail app password never leaves the machine; it refuses to send if the last
+launchd, so its credentials never leave the machine (both secrets in that one mode-600 file,
+because launchd starts no shell to source `.env` from); it refuses to send if the last
 digest went out under 13 days ago (launchd has no biweekly trigger), and aborts if a run would
 cost more than $0.10.
 
 ```bash
 uv run python -m intern --dry-run              # render the digest to stdout; sends nothing
 mkdir -p ~/.preprint-judge
-cp credentials.json.example ~/.preprint-judge/credentials.json   # then fill in the Gmail fields
+cp credentials.json.example ~/.preprint-judge/credentials.json   # Gmail fields + your OpenRouter key
 chmod 600 ~/.preprint-judge/credentials.json
 ./scripts/install-launchd.sh                   # Thursday 14:00 weekly; biweekly enforced in code
 ```

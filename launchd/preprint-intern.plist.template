@@ -11,8 +11,6 @@
         <string>run</string>
         <string>--directory</string>
         <string>__REPO_PATH__</string>
-        <string>--env-file</string>
-        <string>__REPO_PATH__/.env</string>
         <string>python</string>
         <string>-m</string>
         <string>intern</string>

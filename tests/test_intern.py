@@ -1,6 +1,7 @@
 """Pins the production intern: credentials, digest rendering, dedupe, cadence, budget, SMTP."""
 
 import json
+import os
 from datetime import date
 
 import pytest
@@ -50,6 +51,33 @@ def test_credentials_shape(tmp_path):
         )
     )
     assert credentials.load(p) == credentials.Gmail("a@example.com", "p q", "b@example.com")
+
+
+def test_ensure_api_key_prefers_the_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "from-env")
+    p = tmp_path / "credentials.json"
+    p.write_text(json.dumps({"openrouter_api_key": "from-file"}))
+    credentials.ensure_api_key(p)
+    assert os.environ["OPENROUTER_API_KEY"] == "from-env"
+
+
+def test_ensure_api_key_falls_back_to_the_credentials_file(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    p = tmp_path / "credentials.json"
+    p.write_text(json.dumps({"gmail": {}, "openrouter_api_key": "from-file"}))
+    credentials.ensure_api_key(p)
+    assert os.environ["OPENROUTER_API_KEY"] == "from-file"
+
+
+@pytest.mark.parametrize("body", [{}, {"openrouter_api_key": "   "}])
+def test_ensure_api_key_raises_when_there_is_none(tmp_path, monkeypatch, body):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    p = tmp_path / "credentials.json"
+    p.write_text(json.dumps(body))
+    with pytest.raises(RuntimeError, match="openrouter_api_key"):
+        credentials.ensure_api_key(p)
+    with pytest.raises(RuntimeError, match="openrouter_api_key"):
+        credentials.ensure_api_key(tmp_path / "missing.json")
 
 
 def test_subject_and_bodies():
@@ -132,6 +160,7 @@ def test_record_appends_dois_and_log(tmp_path):
 
 
 def test_dry_run_renders_and_sends_nothing(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setattr(run, "STATE", (tmp_path / "seen.json", tmp_path / "intern.log"))
     monkeypatch.setattr(
         run, "fetch_recent", lambda days, cap: [{**p, "abstract": "x"} for p in PICKS]
@@ -147,6 +176,7 @@ def test_dry_run_renders_and_sends_nothing(monkeypatch, tmp_path, capsys):
 
 
 def test_live_run_sends_and_records(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     seen_path = tmp_path / "seen.json"
     monkeypatch.setattr(run, "STATE", (seen_path, tmp_path / "intern.log"))
     monkeypatch.setattr(

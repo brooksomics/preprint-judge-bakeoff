@@ -10,8 +10,10 @@ INSTALL_PATH="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 
 UV_PATH="$(command -v uv || true)"
 [[ -n "$UV_PATH" ]] || { echo "error: 'uv' not found in PATH" >&2; exit 1; }
-[[ -f "${REPO_PATH}/.env" ]] || { echo "error: ${REPO_PATH}/.env with OPENROUTER_API_KEY is required" >&2; exit 1; }
-[[ -f "${HOME}/.preprint-judge/credentials.json" ]] || { echo "error: ~/.preprint-judge/credentials.json missing (see credentials.json.example)" >&2; exit 1; }
+CREDS="${HOME}/.preprint-judge/credentials.json"
+[[ -f "$CREDS" ]] || { echo "error: $CREDS missing (see credentials.json.example)" >&2; exit 1; }
+# launchd starts no shell, so nothing sources .env: the key has to be in the credentials file.
+grep -q '"openrouter_api_key"' "$CREDS" || { echo "error: add \"openrouter_api_key\" to $CREDS" >&2; exit 1; }
 
 if launchctl list "$LABEL" >/dev/null 2>&1; then
     launchctl unload "$INSTALL_PATH" 2>/dev/null || true
