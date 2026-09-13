@@ -35,15 +35,16 @@ def csv_path(tmp_path):
 def test_checks_pass_and_fail_on_thresholds():
     ok = gate.checks(ROW, gate.Thresholds(99, 0.12, 5, 2))
     assert all(passed for _, passed, _ in ok) and len(ok) == 4
-    bad = dict(gate.checks(ROW, gate.Thresholds(99.9, 0.10, 7, 0)))  # every threshold missed
-    assert not any(passed for passed, _ in bad.values())
+    bad = gate.checks(ROW, gate.Thresholds(99.9, 0.10, 7, 0))  # every threshold missed
+    assert not any(passed for _, passed, _ in bad)
 
 
 def test_main_passes_and_exits_zero(csv_path, monkeypatch, capsys):
     monkeypatch.setattr(gate, "live_model_ids", lambda: {"x/m", "y/n"})
     assert gate.main([*ARGS, "--csv", str(csv_path)]) == 0
     out = capsys.readouterr().out
-    assert out.count("PASS") == 5 and "FAIL" not in out and out.strip().endswith("PASS")
+    assert out.count("PASS") == 6 and "FAIL" not in out  # 5 checks + the verdict line
+    assert out.strip().endswith("PASS")
 
 
 def test_main_fails_on_a_threshold(csv_path, monkeypatch, capsys):
