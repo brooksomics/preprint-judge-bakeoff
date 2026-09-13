@@ -21,6 +21,7 @@ judge.py             the one prompt every model sees, and the parser that decide
 harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
 analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, README sync
 probes.py            bias probes: does the judge reward long abstracts? (len rho column, flagged vs the ceiling)
+gate.py              PASS/FAIL exit-code gate for the re-run (thresholds on results.csv + live model-id check)
 agreement.py         chance-corrected agreement: kappa on the >= 0.5 decision, alpha over 0.1 bins, per-category verdicts
 disagreement.py      the preprints the usable models split on most -> results/disagreement.md
 baseline.py          zero-LLM control: tf-idf cosine(profile.md, title + abstract) as a derived row
@@ -171,6 +172,21 @@ pre-commit install --hook-type pre-commit --hook-type pre-push   # ruff, gitleak
 
 The harness appends one JSON row per call and skips `(model, doi, repeat)` triples that
 already exist, so a crashed or budget-stopped run picks up where it left off.
+
+## Re-running
+
+The model roster rots: ids get deprecated, providers change, a cheap model gets quietly
+swapped. When you re-run the harness, `gate.py` says whether the production model is still fit
+to ship, with one PASS/FAIL line per check and exit code 0 or 1:
+
+```bash
+uv run python gate.py --model tencent/hy3 --min-cov 99 --max-mae-hi 0.12 --min-top10 5 --max-violations 2
+```
+
+It reads `results/results.csv` (coverage, the *upper* end of the MAE interval, top-10 overlap,
+wrong-field calls) and makes one GET to `https://openrouter.ai/api/v1/models` to confirm the id
+still exists, so a dead id fails loudly instead of routing to whatever OpenRouter substitutes.
+Thresholds are yours to set; the defaults above are the ones the current winner clears.
 
 ## Point it at your own profile
 
