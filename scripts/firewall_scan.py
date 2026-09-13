@@ -18,7 +18,7 @@ from pathlib import Path
 
 DEFAULT_TERMS = Path.home() / ".config" / "firewall" / "terms.txt"
 TEXT_EXT = {".py", ".md", ".toml", ".yml", ".yaml", ".json", ".jsonl", ".csv"}
-TEXT_EXT |= {".txt", ".example", ".cfg"}
+TEXT_EXT |= {".txt", ".example", ".cfg", ".sh", ".plist", ".template"}
 # Preprint text legitimately contains words like "recruitment"; scan the other values.
 EXEMPT_KEYS = {"title", "abstract", "rationale", "raw", "field"}
 DATA_FILES = {"data/preprints.json", "data/results.jsonl"}
