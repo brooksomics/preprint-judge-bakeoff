@@ -13,7 +13,9 @@ UV_PATH="$(command -v uv || true)"
 CREDS="${HOME}/.preprint-judge/credentials.json"
 [[ -f "$CREDS" ]] || { echo "error: $CREDS missing (see credentials.json.example)" >&2; exit 1; }
 # launchd starts no shell, so nothing sources .env: the key has to be in the credentials file.
-grep -q '"openrouter_api_key"' "$CREDS" || { echo "error: add \"openrouter_api_key\" to $CREDS" >&2; exit 1; }
+# Checked by exit code so the value is never printed, echoed, or put in a process list.
+python3 -c 'import json,sys; sys.exit(0 if str(json.load(open(sys.argv[1])).get("openrouter_api_key","")).strip() else 1)' "$CREDS" \
+    || { echo "error: openrouter_api_key in $CREDS is missing or empty" >&2; exit 1; }
 
 if launchctl list "$LABEL" >/dev/null 2>&1; then
     launchctl unload "$INSTALL_PATH" 2>/dev/null || true
