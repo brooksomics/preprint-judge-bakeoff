@@ -13,10 +13,10 @@ It is the intern that does the abstract skim for
 write-up is
 [Calibrating a Cheap LLM Judge Against a Frontier Ceiling](https://www.bubbabrooks.info/blog/llm-judge-frontier-ceiling/).
 
-Short answer from the September 2026 run: among the configurations that score nearly every
-preprint, `tencent/hy3` has the best agreement with the ceiling and the lowest price, $0.00006 a
-call, though on 90 preprints it does not separate from the next few. The full table, and how to
-read it, is in [docs/RESULTS.md](docs/RESULTS.md).
+Short answer: `minimax/minimax-m3@low` agrees best with the ceiling (MAE 0.072), and
+`tencent/hy3` is the cheapest close second (MAE 0.088 at $0.00006 a call, 4.5 times less), which
+is why the intern runs it. The full table, and how to read it, is in
+[docs/RESULTS.md](docs/RESULTS.md).
 
 ![MAE against measured cost per call](results/fig_mae_vs_cost.png)
 

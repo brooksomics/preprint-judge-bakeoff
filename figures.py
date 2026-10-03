@@ -2,7 +2,8 @@
 
 Palette: categorical slots 1-3 of the validated default (blue = reasoning off, orange = reasoning
 on, aqua = strict structured output); derived rows (ens:, baseline:) are hollow markers; rows
-below USABLE_COV coverage are hollow and MUTED (3.6:1 on the surface), so the eye does not land
+that leave a preprint unscored in every repeat (analyze: usable) are hollow and MUTED (3.6:1
+on the surface), so the eye does not land
 on a model that cannot be used; text in ink tokens, recessive grid, no dashed rules. Each dot
 carries a number, placed so none collide (_place_labels), and a key below the plot names it.
 """
@@ -14,7 +15,7 @@ from pathlib import Path
 
 import matplotlib
 
-from analyze import DERIVED, USABLE_COV
+from analyze import DERIVED
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -49,8 +50,8 @@ def _style(ax) -> None:
     ax.set_axisbelow(True)
 
 
-def _color(label: str, cov: float = 100.0) -> str:
-    if cov < USABLE_COV:
+def _color(label: str, usable: bool = True) -> str:
+    if not usable:
         return MUTED
     if "#schema" in label:
         return SCHEMA
@@ -59,7 +60,7 @@ def _color(label: str, cov: float = 100.0) -> str:
 
 def _legend(ax, muted: bool = False, **kw) -> None:
     dot = dict(marker="o", ls="")
-    unusable = f"below {USABLE_COV:.0f}% coverage: not usable"
+    unusable = "leaves a preprint unscored in 3 tries: not usable"
     handles = [
         *([Line2D([], [], color=MUTED, mfc=SURFACE, label=unusable, **dot)] if muted else []),
         Line2D([], [], color=BASE, label="reasoning off", **dot),
@@ -75,14 +76,14 @@ def _scatter_points(ax, pts: list[tuple[str, dict]]) -> list[tuple[str, tuple, s
     marker repeated); return (number, xy, ink) for _place_labels."""
     labels, key = [], []
     for n, (k, r) in enumerate(pts, 1):
-        color, xy = _color(k, r["cov"]), (r["cost_usd"], r["mae"])
+        color, xy = _color(k, r["usable"]), (r["cost_usd"], r["mae"])
         if not math.isnan(r["mae_lo"] + r["mae_hi"]):
             err = [[r["mae"] - r["mae_lo"]], [r["mae_hi"] - r["mae"]]]
             ax.errorbar(*xy, yerr=err, fmt="none", ecolor=color, elinewidth=1, alpha=0.6, zorder=2)
         face = SURFACE if r["derived"] or color == MUTED else color
         ax.scatter(*xy, s=MARKER, facecolor=face, edgecolor=color, lw=1.6, zorder=3)
         muted = color == MUTED
-        name = f"{n}  {_short(k)}" + (f" ({r['cov']:.1f}% cov)" if muted else "")
+        name = f"{n}  {_short(k)}" + (f" ({r['unscored']} never scored)" if muted else "")
         key.append(Line2D([], [], marker="o", ls="", color=color, mfc=face, label=name))
         labels.append((str(n), xy, INK2 if muted else INK))
     kw = dict(frameon=False, fontsize=7.5, labelcolor=INK, handletextpad=0.3, columnspacing=1.5)
@@ -158,7 +159,7 @@ def plot_mae_vs_cost(m: dict, out: Path, ceiling: str) -> None:
     ax.set_ylabel(f"MAE vs {_short(ceiling)} (lower is better)", color=INK2)
     title = "Agreement with the ceiling vs. price per call"
     ax.set_title(title, color=INK, fontsize=10, loc="left")
-    _legend(ax, muted=True)
+    _legend(ax, muted=not all(r["usable"] for _, r in pts))
     fig.canvas.draw()  # runs the layout and fixes the legend's spot before the numbers go in
     _place_labels(ax, numbers)
     _save(fig, out / "fig_mae_vs_cost.png")

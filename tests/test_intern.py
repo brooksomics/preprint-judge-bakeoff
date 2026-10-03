@@ -288,3 +288,20 @@ def test_live_run_sends_and_records(monkeypatch, tmp_path):
     assert len(sent) == 1 and len(sent[0].picks) == 2
     assert json.loads(seen_path.read_text())["last_sent"] == date.today().isoformat()
     assert run.main([]) == 0 and len(sent) == 1  # not due again: nothing sent
+
+
+def test_score_retries_unscored_papers_twice_and_charges_every_call(monkeypatch):
+    calls = {}
+
+    def flaky(t):
+        doi = t[1]["doi"]
+        calls[doi] = calls.get(doi, 0) + 1
+        ok = doi == "second-try" and calls[doi] > 1
+        return {"doi": doi, "fit_score": 0.5 if ok else None, "cost_usd": 0.001}
+
+    monkeypatch.setattr(run.harness, "run_one", flaky)
+    got = {r["doi"]: r for r in run.score([{"doi": "second-try"}, {"doi": "never"}], ("m", "off"))}
+    assert got["second-try"]["fit_score"] == 0.5 and calls["second-try"] == 2
+    assert got["second-try"]["cost_usd"] == pytest.approx(0.002)
+    assert got["never"]["fit_score"] is None and calls["never"] == 3
+    assert got["never"]["cost_usd"] == pytest.approx(0.003)

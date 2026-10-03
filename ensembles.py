@@ -15,6 +15,8 @@ import statistics as st
 from collections import defaultdict
 
 ENSEMBLES = [
+    # Picked 2026-09-12 under the earlier usability rule (>= 99% of single calls scored), kept
+    # as registered rather than re-picked under the retry-aware rule.
     # best MAE + steadiest sigma + best top-10 among usable single models
     ("tencent/hy3", "google/gemini-3.5-flash-lite", "deepseek/deepseek-v4.1-flash"),
     # the three cheapest usable models by $/call

@@ -35,6 +35,7 @@ def _cells(k: str, r: dict) -> list[str]:
     return [
         f"_{k}_" if r["derived"] else k,
         f"{r['cov']:.1f}",
+        str(r["unscored"]),
         f"{r['strict']:.1f}",
         " / ".join(_num(r[c], ".1f") for c in ("cov_strict", "cov_lenient", "cov_repaired")),
         str(r["violations"]),
@@ -52,11 +53,12 @@ def _cells(k: str, r: dict) -> list[str]:
 
 
 def write_md(m: dict, path: Path) -> None:
-    cols = "| model | cov% | strict% | ladder strict / lenient / repaired | wrong-field | sigma "
+    cols = "| model | cov% | unscored | strict% | ladder strict / lenient / repaired "
+    cols += "| wrong-field | sigma "
     cols += "| MAE vs ceiling [95% CI] | P(<= best) |"
     md = [
         f"{cols} rho | kappa | alpha | len rho | top-{SHORTLIST} | latency s | $/call |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     md += ["| " + " | ".join(_cells(k, r)) + " |" for k, r in m.items()]
     path.write_text("\n".join(md) + "\n")

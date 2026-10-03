@@ -24,7 +24,7 @@ swapped. When you re-run the harness, `gate.py` says whether the production mode
 to ship, with one PASS/FAIL line per check and exit code 0 or 1:
 
 ```bash
-uv run python gate.py --model tencent/hy3 --min-cov 99 --max-mae-hi 0.12 --min-top10 5 --max-violations 2
+uv run python gate.py --model tencent/hy3 --max-unscored 0 --max-mae-hi 0.12 --min-top10 5 --max-violations 2
 ```
 
 It reads `results/results.csv` (coverage, the *upper* end of the MAE interval, top-10 overlap,

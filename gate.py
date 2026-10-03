@@ -1,6 +1,6 @@
 """Exit-code gate for the re-run: is the production model still fit to ship?
 
-    uv run python gate.py --model tencent/hy3 --min-cov 99 --max-mae-hi 0.12 --min-top10 5 \\
+    uv run python gate.py --model tencent/hy3 --max-unscored 0 --max-mae-hi 0.12 --min-top10 5 \\
         --max-violations 2
 
 Reads results/results.csv, prints one PASS/FAIL line per check plus a final verdict, exits 0
@@ -23,7 +23,7 @@ MODELS_URL = "https://openrouter.ai/api/v1/models"
 
 
 class Thresholds(NamedTuple):
-    min_cov: float
+    max_unscored: int
     max_mae_hi: float
     min_top10: int
     max_violations: int
@@ -31,10 +31,10 @@ class Thresholds(NamedTuple):
 
 def checks(row: dict, t: Thresholds) -> list[tuple[str, bool, str]]:
     """(name, passed, detail) for each threshold against one results.csv row."""
-    cov, mae_hi = float(row["cov"]), float(row["mae_hi"])
+    unscored, mae_hi = int(row["unscored"]), float(row["mae_hi"])
     top10, viol = int(row["top10"]), int(row["violations"])
     return [
-        ("cov", cov >= t.min_cov, f"{cov:.1f} >= {t.min_cov}"),
+        ("unscored", unscored <= t.max_unscored, f"{unscored} <= {t.max_unscored}"),
         ("mae_hi", mae_hi <= t.max_mae_hi, f"{mae_hi:.3f} <= {t.max_mae_hi}"),
         ("top10", top10 >= t.min_top10, f"{top10} >= {t.min_top10}"),
         ("violations", viol <= t.max_violations, f"{viol} <= {t.max_violations}"),
@@ -51,7 +51,7 @@ def _args(argv: list[str] | None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--model", required=True)
     ap.add_argument("--csv", type=Path, default=Path("results/results.csv"))
-    ap.add_argument("--min-cov", type=float, default=99.0)
+    ap.add_argument("--max-unscored", type=int, default=0, help="papers never scored in 3 tries")
     ap.add_argument("--max-mae-hi", type=float, default=0.12)
     ap.add_argument("--min-top10", type=int, default=5)
     ap.add_argument("--max-violations", type=int, default=2)
@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.model not in rows:
         print(f"FAIL  {a.model} has no row in {a.csv}\nFAIL")
         return 1
-    t = Thresholds(a.min_cov, a.max_mae_hi, a.min_top10, a.max_violations)
+    t = Thresholds(a.max_unscored, a.max_mae_hi, a.min_top10, a.max_violations)
     listed = a.model in live_model_ids()
     results = checks(rows[a.model], t) + [
         ("listed", listed, "id listed by OpenRouter" if listed else "id not listed by OpenRouter")

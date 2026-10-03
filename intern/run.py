@@ -35,6 +35,7 @@ BUDGET_USD = 0.25  # 14 days on all three servers was 956 first postings (2026-1
 EST_PER_CALL = 0.0001  # generous: hy3 measured $0.00006
 MIN_GAP_DAYS = 13
 WORKERS = 8
+RETRIES = 2  # the bakeoff calls a model usable when every paper scores within 3 tries
 
 
 def load_seen(path: Path) -> dict:
@@ -83,6 +84,11 @@ def score(items: list[dict], model: tuple[str, str]) -> list[dict]:
     tasks = [(model, it, 0) for it in items]
     with ThreadPoolExecutor(WORKERS) as pool:
         rows = list(pool.map(harness.run_one, tasks))
+        for _ in range(RETRIES):  # a miss a retry recovers costs a call; a skipped paper is lost
+            todo = [i for i, r in enumerate(rows) if r.get("fit_score") is None]
+            for i, r in zip(todo, pool.map(harness.run_one, [tasks[i] for i in todo]), strict=True):
+                r["cost_usd"] = (r.get("cost_usd") or 0) + (rows[i].get("cost_usd") or 0)
+                rows[i] = r
     rows = [
         r | it for r, it in zip(rows, items, strict=True)
     ]  # harness rows cut the title to 120 chars

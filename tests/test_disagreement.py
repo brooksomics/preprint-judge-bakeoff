@@ -14,7 +14,7 @@ def _rows():
         "hi": {"a": 0.9, "b": 0.5, "c": 0.5},
         "lo": {"a": 0.1, "b": 0.5, "c": 0.5},
         "mid": {"a": 0.5, "b": 0.6, "c": 0.5},
-        "flaky": {"a": 0.0, "b": 0.0, "c": 0.0},  # below the coverage floor, must be ignored
+        "flaky": {"a": 0.0, "b": 0.0, "c": 0.0},  # leaves papers unscored: must be ignored
     }
     meta = {
         "a": ("A title", "genomics", "in"),
@@ -37,7 +37,9 @@ def _rows():
 
 
 def _metrics():
-    return {k: {"cov": 100.0} for k in (CEILING, "hi", "lo", "mid")} | {"flaky": {"cov": 50.0}}
+    return {k: {"usable": True} for k in (CEILING, "hi", "lo", "mid")} | {
+        "flaky": {"usable": False}
+    }
 
 
 def test_usable_labels_excludes_ceiling_and_low_coverage():

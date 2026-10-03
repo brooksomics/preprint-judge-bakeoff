@@ -248,7 +248,7 @@ def test_results_table_roundtrip(tmp_path, rows):
     report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
     assert csv[0].startswith(
-        "label,cov,strict,cov_strict,cov_lenient,cov_repaired,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
+        "label,cov,unscored,strict,cov_strict,cov_lenient,cov_repaired,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
     )
     assert json.dumps(m)  # serializable
 
@@ -390,11 +390,11 @@ def test_violations_count_calls_not_preprints(rows):
     assert len({r["doi"] for r in off}) == 1 and m["violations"] == 2
 
 
-def test_rows_below_usable_coverage_are_greyed_out():
+def test_unusable_rows_are_greyed_out():
     import figures
 
-    assert figures._color("a/b", analyze.USABLE_COV - 0.1) == figures.MUTED
-    assert figures._color("a/b", analyze.USABLE_COV) == figures.BASE
+    assert figures._color("a/b", usable=False) == figures.MUTED
+    assert figures._color("a/b") == figures.BASE
     assert figures._color("a/b@low") == figures.REASONING  # the coverage chart never mutes
 
 
@@ -440,3 +440,12 @@ def test_mae_chart_numbers_each_dot_and_keys_the_names_closest_first(tmp_path, r
     assert sorted(t.get_text() for t in fig.axes[0].texts) == ["1", "2"]
     key = [t.get_text().split()[:2] for t in fig.legends[0].get_texts()]
     assert key == [["1", "m"], ["2", "far"]]  # m sits closer to the ceiling; provider dropped
+
+
+def test_usable_means_every_paper_scored_within_the_repeats(rows):
+    # misses a call on every paper but never a whole paper: usable at 67% per-call coverage
+    rows += [row("x/flaky", d, i, None if i == 0 else 0.8) for d in "abc" for i in range(3)]
+    m = analyze.metrics(rows, CEILING)
+    assert (m["m"]["unscored"], m["m"]["usable"]) == (1, False)  # item c never scored
+    assert m["x/flaky"]["cov"] == pytest.approx(200 / 3) and m["x/flaky"]["unscored"] == 0
+    assert m["x/flaky"]["usable"] and analyze.best_usable(m, CEILING) == "x/flaky"

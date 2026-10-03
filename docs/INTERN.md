@@ -3,9 +3,10 @@
 `python -m intern` is the thing this repo was built to choose a model for: every other Thursday
 it pulls every preprint first posted in the last two weeks to the in-lane categories of bioRxiv,
 medRxiv (`MED_IN_LANE`) and arXiv q-bio (GN, QM, BM, PE), about 950 papers, drops the DOIs it
-has already sent, scores each once with the gate-approved model (`tencent/hy3`, reasoning off,
-seven to ten cents per run, measured), and emails the top five to your own inbox over Gmail
-SMTP. The bioRxiv API is oldest-first with no sort option, so it pages the whole window rather
+has already sent, scores each once (retrying a call that returns no score, up to twice) with
+the gate-approved model (`tencent/hy3`, reasoning off, seven to ten cents per run, measured),
+and emails the top five to your own inbox over Gmail SMTP. The bioRxiv API is oldest-first with
+no sort option, so it pages the whole window rather
 than capping it: a cap would drop the newest days, and since windows abut, drop them for good.
 Hy3 scores coarsely (74 of 948 papers tied at 0.85 on 2026-10-02), so the group tied at the
 top-five cutoff is re-scored once by DeepSeek V4.1 Flash, about two cents; on that window it

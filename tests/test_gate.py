@@ -7,12 +7,12 @@ import pytest
 
 import gate
 
-ROW = {"label": "x/m", "cov": "99.5", "mae_hi": "0.11", "top10": "6", "violations": "1"}
+ROW = {"label": "x/m", "unscored": "0", "mae_hi": "0.11", "top10": "6", "violations": "1"}
 ARGS = [
     "--model",
     "x/m",
-    "--min-cov",
-    "99",
+    "--max-unscored",
+    "0",
     "--max-mae-hi",
     "0.12",
     "--min-top10",
@@ -33,9 +33,9 @@ def csv_path(tmp_path):
 
 
 def test_checks_pass_and_fail_on_thresholds():
-    ok = gate.checks(ROW, gate.Thresholds(99, 0.12, 5, 2))
+    ok = gate.checks(ROW, gate.Thresholds(0, 0.12, 5, 2))
     assert all(passed for _, passed, _ in ok) and len(ok) == 4
-    bad = gate.checks(ROW, gate.Thresholds(99.9, 0.10, 7, 0))  # every threshold missed
+    bad = gate.checks(ROW, gate.Thresholds(-1, 0.10, 7, 0))  # every threshold missed
     assert not any(passed for _, passed, _ in bad)
 
 

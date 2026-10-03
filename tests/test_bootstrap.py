@@ -55,4 +55,7 @@ def test_reproduces_prototype_intervals_on_published_data():
     hy3, haiku = m["tencent/hy3"], m["anthropic/claude-haiku-4.5"]
     assert (hy3["mae_lo"], hy3["mae_hi"]) == pytest.approx((0.068, 0.110), abs=0.005)
     assert (haiku["mae_lo"], haiku["mae_hi"]) == pytest.approx((0.117, 0.158), abs=0.005)
-    assert hy3["mae_diff_p"] == 1.0  # hy3 is the best usable model, so it is its own reference
+    # every preprint scored within 3 tries makes minimax-m3@low usable at 96.3% per-call coverage:
+    # it is the reference, and hy3 matches or beats it in 4% of resamples
+    assert m["minimax/minimax-m3@low"]["mae_diff_p"] == 1.0
+    assert hy3["mae_diff_p"] == pytest.approx(0.043, abs=0.01)
