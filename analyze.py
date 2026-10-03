@@ -194,7 +194,7 @@ def main() -> None:  # pragma: no cover
     m = metrics(rows, a.ceiling)
     report.write_tables(m, a.out)
     figures.plot_all(m, a.out, a.ceiling)
-    report.sync_readme(Path("README.md"), (a.out / "results.md").read_text())
+    report.sync_results(Path("docs/RESULTS.md"), (a.out / "results.md").read_text())
     spec = disagreement.Spec(a.ceiling, a.top_disagreement)
     (a.out / "disagreement.md").write_text(disagreement.markdown(rows, m, spec))
     report.write_agreement(

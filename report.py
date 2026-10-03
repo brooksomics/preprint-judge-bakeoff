@@ -1,4 +1,4 @@
-"""Write the results tables (CSV + markdown), the detail printouts, and sync the README block."""
+"""Write the results tables (CSV + markdown), the detail printouts, and sync docs/RESULTS.md."""
 
 from __future__ import annotations
 
@@ -86,17 +86,17 @@ def write_tables(m: dict, out: Path) -> None:
     write_md(m, out / "results.md")
 
 
-def sync_readme(readme: Path, table_md: str) -> None:
+def sync_results(doc: Path, table_md: str) -> None:
     """Replace the markdown table between the RESULTS markers with table_md; prose stays."""
-    if not readme.exists():
+    if not doc.exists():
         return
-    text = readme.read_text()
+    text = doc.read_text()
     head, rest = text.split(MARK_START, 1)
     block, tail = rest.split(MARK_END, 1)
     lines = block.splitlines()
     idx = [i for i, ln in enumerate(lines) if ln.startswith("|")]
     lines[idx[0] : idx[-1] + 1] = table_md.strip().splitlines()
-    readme.write_text(head + MARK_START + "\n".join(lines) + "\n" + MARK_END + tail)
+    doc.write_text(head + MARK_START + "\n".join(lines) + "\n" + MARK_END + tail)
 
 
 def provider_detail(rows: list[dict], floor: float = 100.0) -> list[str]:

@@ -1,4 +1,4 @@
-"""Two figures from the metrics dict. Static PNGs for the README and the post, so no hover layer.
+"""Two figures from the metrics dict. Static PNGs for the docs and the post, so no hover layer.
 
 Palette: categorical slots 1-3 of the validated default (blue = reasoning off, orange = reasoning
 on, aqua = strict structured output); derived rows (ens:, baseline:) are hollow markers; text in

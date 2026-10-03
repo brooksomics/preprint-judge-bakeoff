@@ -54,11 +54,11 @@ def test_mae_interval_brackets_mae_and_reference_has_p_one(rows):
     assert m[CEILING]["mae_diff_p"] == 1.0  # the ceiling beats everything in every resample
 
 
-def test_sync_readme_replaces_only_the_table(tmp_path):
-    readme = tmp_path / "README.md"
+def test_sync_results_replaces_only_the_table(tmp_path):
+    readme = tmp_path / "RESULTS.md"
     frame = "intro\n<!-- RESULTS:START -->\nprose\n{}\n\nmore\n<!-- RESULTS:END -->\ntail\n"
     readme.write_text(frame.format("| a |\n|---|\n| 1 |"))
-    report.sync_readme(readme, "| b |\n|---|\n| 2 |\n")
+    report.sync_results(readme, "| b |\n|---|\n| 2 |\n")
     assert readme.read_text() == frame.format("| b |\n|---|\n| 2 |")
 
 
