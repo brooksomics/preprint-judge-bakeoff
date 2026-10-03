@@ -388,3 +388,37 @@ def test_violations_count_calls_not_preprints(rows):
     m = analyze.metrics(rows, CEILING)["m"]
     off = [r for r in rows if r["label"] == "m" and r["lane"] == "off"]
     assert len({r["doi"] for r in off}) == 1 and m["violations"] == 2
+
+
+def test_rows_below_usable_coverage_are_greyed_out():
+    import figures
+
+    assert figures._color("a/b", analyze.USABLE_COV - 0.1) == figures.MUTED
+    assert figures._color("a/b", analyze.USABLE_COV) == figures.BASE
+    assert figures._color("a/b@low") == figures.REASONING  # the coverage chart never mutes
+
+
+def test_labels_clear_each_other_the_markers_and_the_axes():
+    import itertools
+
+    import matplotlib.pyplot as plt
+
+    import figures
+
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
+    # the published run's densest cluster: hy3, mimo, both mercury rows, qwen, an ensemble
+    pts = [(6e-5, 0.088), (7e-5, 0.103), (6.8e-5, 0.120), (7.2e-5, 0.120), (9.5e-5, 0.118)]
+    pts += [(2.0e-4, 0.093), (2.1e-4, 0.099), (1.3e-4, 0.092), (1.4e-4, 0.096)]
+    ax.scatter(*zip(*pts, strict=True), s=70)
+    ax.set_xscale("log")
+    ax.set_xlim(5e-5, 1e-3)
+    ax.set_ylim(0.05, 0.2)
+    fig.tight_layout()
+    names = [f"ens:model-{i}+other-model+third-model" if i == 5 else f"model-{i}" for i in range(9)]
+    texts = figures._place_labels(ax, [(n, xy, "k") for n, xy in zip(names, pts, strict=True)])
+    r = fig.canvas.get_renderer()
+    boxes = [t.get_window_extent(r) for t in texts]
+    assert not any(a.overlaps(b) for a, b in itertools.combinations(boxes, 2))
+    inside = ax.get_window_extent(r)
+    assert all(inside.contains(b.x0, b.y0) and inside.contains(b.x1, b.y1) for b in boxes)
+    plt.close(fig)

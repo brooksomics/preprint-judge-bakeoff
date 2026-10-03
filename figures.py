@@ -1,8 +1,10 @@
 """Two figures from the metrics dict. Static PNGs for the docs and the post, so no hover layer.
 
 Palette: categorical slots 1-3 of the validated default (blue = reasoning off, orange = reasoning
-on, aqua = strict structured output); derived rows (ens:, baseline:) are hollow markers; text in
-ink tokens, recessive grid, no dashed rules.
+on, aqua = strict structured output); derived rows (ens:, baseline:) are hollow markers; rows
+below USABLE_COV coverage are hollow and MUTED (3.6:1 on the surface), so the eye does not land
+on a model that cannot be used; text in ink tokens, recessive grid, no dashed rules. Labels are
+placed greedily so none collide (see _place_labels).
 """
 
 from __future__ import annotations
@@ -12,14 +14,23 @@ from pathlib import Path
 
 import matplotlib
 
-from analyze import DERIVED
+from analyze import DERIVED, USABLE_COV
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
+from matplotlib.transforms import Bbox  # noqa: E402
 
 BASE, REASONING, SCHEMA = "#2a78d6", "#eb6834", "#1baf7a"
 INK, INK2, SURFACE, GRID = "#0b0b0b", "#52514e", "#fcfcfb", "#e6e5e1"
+MUTED = "#86847e"
+MARKER = 70  # scatter s, points^2
+# label offsets in points from the marker, tried in order: beside it, then above/below, then
+# further out, where a hairline leader ties the label back to its marker
+OFFSETS = [(6, 4, "left"), (6, -11, "left"), (-6, 4, "right"), (-6, -11, "right")]
+OFFSETS += [(0, 9, "center"), (0, -17, "center"), (6, 14, "left"), (-6, 14, "right")]
+OFFSETS += [(14, 26, "left"), (-14, 26, "right"), (14, -32, "left"), (-14, -32, "right")]
+LEADER = 5  # OFFSETS from this index on get a leader line
 
 
 def _short(label: str) -> str:
@@ -37,15 +48,18 @@ def _style(ax) -> None:
     ax.set_axisbelow(True)
 
 
-def _color(label: str) -> str:
+def _color(label: str, cov: float = 100.0) -> str:
+    if cov < USABLE_COV:
+        return MUTED
     if "#schema" in label:
         return SCHEMA
     return REASONING if "@" in label else BASE
 
 
-def _legend(ax, **kw) -> None:
+def _legend(ax, extra: tuple = (), **kw) -> None:
     dot = dict(marker="o", ls="")
     handles = [
+        *extra,
         Line2D([], [], color=BASE, label="reasoning off", **dot),
         Line2D([], [], color=REASONING, label="reasoning on (@low / @medium)", **dot),
         Line2D([], [], color=SCHEMA, label="strict structured output (#schema)", **dot),
@@ -54,17 +68,67 @@ def _legend(ax, **kw) -> None:
     ax.legend(handles=handles, frameon=False, fontsize=8, labelcolor=INK2, **kw)
 
 
-def _scatter_points(ax, pts: list[tuple[str, dict]]) -> None:
+def _scatter_points(ax, pts: list[tuple[str, dict]]) -> list[tuple[str, tuple, str]]:
+    """Draw markers and error bars; return (label, xy, ink) for _place_labels."""
+    labels = []
     for k, r in pts:
-        color, xy = _color(k), (r["cost_usd"], r["mae"])
+        color, xy = _color(k, r["cov"]), (r["cost_usd"], r["mae"])
         if not math.isnan(r["mae_lo"] + r["mae_hi"]):
             err = [[r["mae"] - r["mae_lo"]], [r["mae_hi"] - r["mae"]]]
             ax.errorbar(*xy, yerr=err, fmt="none", ecolor=color, elinewidth=1, alpha=0.6, zorder=2)
-        face = SURFACE if r["derived"] else color
-        ax.scatter(*xy, s=70, facecolor=face, edgecolor=color, lw=1.6, zorder=3)
-        ax.annotate(
-            _short(k), xy, xytext=(6, 4), textcoords="offset points", fontsize=7.5, color=INK
+        face = SURFACE if r["derived"] or color == MUTED else color
+        ax.scatter(*xy, s=MARKER, facecolor=face, edgecolor=color, lw=1.6, zorder=3)
+        muted = color == MUTED
+        text = _short(k) + (f" ({r['cov']:.1f}% cov)" if muted else "")
+        labels.append((text, xy, INK2 if muted else INK))
+    return labels
+
+
+def _place_labels(ax, items: list[tuple[str, tuple, str]]) -> list:
+    """Greedy direct labels: each takes the first offset whose box stays inside the axes and
+    clears every marker, the legend and the labels already placed (else the least-bad one).
+    Call after layout is final; boxes are in display space, so a later dpi change is fine."""
+    r = ax.figure.canvas.get_renderer()
+    half = math.sqrt(MARKER) / 2 * ax.figure.dpi / 72 + 1
+    at = [ax.transData.transform(xy) for _, xy, _ in items]
+    blocked = [Bbox.from_bounds(x - half, y - half, 2 * half, 2 * half) for x, y in at]
+    blocked += [ax.get_legend().get_window_extent(r)] if ax.get_legend() else []
+    frame, placed = ax.get_window_extent(r), []
+    for text, xy, ink in items:
+        tries = []
+        for dx, dy, ha in OFFSETS:
+            t = ax.annotate(
+                text,
+                xy,
+                xytext=(dx, dy),
+                textcoords="offset points",
+                ha=ha,
+                fontsize=7.5,
+                color=ink,
+            )
+            bb = t.get_window_extent(r)
+            out = not (frame.contains(bb.x0, bb.y0) and frame.contains(bb.x1, bb.y1))
+            tries.append((sum(bb.overlaps(o) for o in blocked) + 10 * out, len(tries), t, bb))
+            if tries[-1][0] == 0:
+                break
+        _, i, keep, bb = min(tries, key=lambda c: c[:2])
+        for c in tries:
+            c[2].remove()
+        dx, dy, ha = OFFSETS[i]
+        lead = dict(arrowstyle="-", color=INK2, lw=0.5, alpha=0.7, shrinkA=0, shrinkB=5)
+        keep = ax.annotate(
+            text,
+            xy,
+            xytext=(dx, dy),
+            textcoords="offset points",
+            ha=ha,
+            fontsize=7.5,
+            color=ink,
+            arrowprops=lead if i >= LEADER else None,
         )
+        blocked.append(bb)
+        placed.append(keep)
+    return placed
 
 
 def _save(fig, path: Path) -> None:
@@ -77,16 +141,29 @@ def plot_mae_vs_cost(m: dict, out: Path, ceiling: str) -> None:
     pts = [
         (k, r) for k, r in m.items() if k != ceiling and not math.isnan(r["mae"] + r["cost_usd"])
     ]
+    pts.sort(key=lambda kr: kr[1]["mae"])  # the closest models get first pick of label spots
     fig, ax = plt.subplots(figsize=(7.5, 4.8), facecolor=SURFACE)
     _style(ax)
-    _scatter_points(ax, pts)
+    labels = _scatter_points(ax, pts)
     ax.set_xscale("log")
     ax.set_xlabel("$ per call, measured (log scale)", color=INK2)
-    ax.set_ylabel(f"MAE vs {_short(ceiling)} (lower = closer to the ceiling)", color=INK2)
+    ax.set_ylabel(f"MAE vs {_short(ceiling)} (lower is better)", color=INK2)
     ax.set_title(
         "Agreement with the ceiling vs. price per call", color=INK, fontsize=10, loc="left"
     )
-    _legend(ax)
+    unusable = Line2D(
+        [],
+        [],
+        color=MUTED,
+        mfc=SURFACE,
+        marker="o",
+        ls="",
+        label=f"below {USABLE_COV:.0f}% coverage: not usable",
+    )
+    _legend(ax, extra=(unusable,))
+    fig.tight_layout()
+    fig.canvas.draw()  # fixes the axes box and the legend's "best" spot before labels go in
+    _place_labels(ax, labels)
     _save(fig, out / "fig_mae_vs_cost.png")
 
 
