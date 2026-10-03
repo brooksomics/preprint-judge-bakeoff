@@ -2,7 +2,8 @@
 
 In rank order: the corresponding author is at an OpenAlex top-200 institution (by h-index; the
 last author stands in when nobody is flagged), the abstract names code or a public dataset, then
-TF-IDF similarity to the published Journal Safari posts. On the 74 ties of 2026-10-02 none of
+TF-IDF similarity to the reader's own past picks: off unless `past_picks` is set in the credentials
+file (measured against the author's Journal Safari posts). On the 74 ties of 2026-10-02 none of
 the three beat a random order on ceiling fit by a margin one window can show, and none cost any:
 the institution key is a stated reader preference (alone it ran slightly against the ceiling,
 rho -0.19), the other two are the only free signals that tracked it at all (+0.36, +0.28).
@@ -21,8 +22,9 @@ import sys
 import urllib.request
 from collections import Counter
 
+from intern import credentials
+
 OPENALEX = "https://api.openalex.org/"
-POSTS = "https://www.bubbabrooks.info/llms-full.txt"  # every published post, full text
 DATA = re.compile(
     r"github|gitlab|zenodo|code (is|are) (freely |publicly )?available|open[- ]source|"
     r"uk biobank|all of us|cellxgene|proteingym|clinvar|gnomad|tcga|1000 genomes|\bgeo\b",
@@ -57,15 +59,13 @@ def corresponding_institutions(dois: list[str]) -> dict[str, set[str]]:
     return out
 
 
-def journal_safari_posts(text: str) -> list[str]:
+def past_pick_posts(text: str, prefix: str) -> list[str]:
     """Each post in llms-full.txt opens with '### Title' then 'URL:'; a bare ### is a subhead."""
     starts = list(re.finditer(r"^### (.+)\nURL: ", text, re.M))
     ends = [m.start() for m in starts[1:]] + [len(text)]
     noise = re.compile(r"<[^>]+>|```.*?```|\(http[^)]*\)", re.S)  # tags, frontmatter, link targets
     posts = [noise.sub(" ", text[m.end() : e]) for m, e in zip(starts, ends, strict=True)]
-    return [
-        p for m, p in zip(starts, posts, strict=True) if m.group(1).startswith("Journal Safari")
-    ]
+    return [p for m, p in zip(starts, posts, strict=True) if m.group(1).startswith(prefix)]
 
 
 def _bag(s: str) -> Counter:
@@ -75,7 +75,7 @@ def _bag(s: str) -> Counter:
 def similarity(texts: dict[str, str], refs: list[str]) -> dict[str, float]:
     """Max TF-IDF cosine of each text to any ref (sublinear tf, idf over texts + refs)."""
     if not refs:
-        raise ValueError("no Journal Safari posts found")
+        raise ValueError("no past-pick posts found at the past_picks url")
     docs, qs = {k: _bag(v) for k, v in texts.items()}, [_bag(r) for r in refs]
     df = Counter(w for c in [*docs.values(), *qs] for w in c)
     n = len(docs) + len(qs)
@@ -106,9 +106,13 @@ def _institution_key(group: list[dict]) -> None:
 
 
 def _similarity_key(group: list[dict]) -> None:
+    picks = credentials.past_picks()
+    if picks is None:  # off by default: the reference text is one reader's own history
+        return
+    url, prefix = picks
     sims = similarity(
         {r["doi"]: f"{r['title']} {r['abstract']}" for r in group},
-        journal_safari_posts(_get(POSTS)),
+        past_pick_posts(_get(url), prefix),
     )
     for r in group:
         r["similar"] = sims[r["doi"]]

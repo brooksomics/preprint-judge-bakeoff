@@ -47,3 +47,15 @@ def ensure_api_key(path: Path = DEFAULT_PATH) -> None:
     if not key:
         raise RuntimeError(f"no {OPENROUTER_ENV} exported and no openrouter_api_key in {path}")
     os.environ[OPENROUTER_ENV] = key
+
+
+def past_picks(path: Path = DEFAULT_PATH) -> tuple[str, str] | None:
+    """The reader's own past picks for the similarity tie-break, or None: off unless set.
+
+    Shape: {"past_picks": {"url": ..., "title_prefix": ...}}, where the URL serves posts in
+    llms-full.txt form (each '### Title' then 'URL:') and only titles with the prefix count.
+    """
+    raw = json.loads(path.read_text()) if path.exists() else {}
+    cfg = raw.get("past_picks") or {}
+    url = str(cfg.get("url", "")).strip()
+    return (url, str(cfg.get("title_prefix", "")).strip()) if url else None

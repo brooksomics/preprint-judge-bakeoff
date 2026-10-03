@@ -37,8 +37,11 @@ def fake_get(responses: dict):
     return get
 
 
-def test_journal_safari_posts_keeps_only_safari_sections_whole():
-    [post] = tiebreak.journal_safari_posts(POSTS)
+PICKS = ("https://example.org/llms-full.txt", "Journal Safari")
+
+
+def test_past_pick_posts_keeps_only_prefixed_sections_whole():
+    [post] = tiebreak.past_pick_posts(POSTS, "Journal Safari")
     assert "protein language model" in post and "more protein variant text" in post
     assert "single cell" not in post and "frontmatter-word" not in post
 
@@ -66,6 +69,7 @@ def test_annotate_sets_all_three_keys(monkeypatch):
         "_get",
         fake_get({"institutions?": json.dumps(top), "works?": json.dumps(works), "llms": POSTS}),
     )
+    monkeypatch.setattr(tiebreak.credentials, "past_picks", lambda: PICKS)
     group = [
         {"doi": "10.1/A", "title": "Protein language model", "abstract": "variant effect; GitHub"},
         {"doi": "10.1/b", "title": "Soil survey", "abstract": "field ecology"},
@@ -82,7 +86,19 @@ def test_annotate_survives_openalex_and_site_outages(monkeypatch, capsys):
         raise urllib.error.URLError("down")
 
     monkeypatch.setattr(tiebreak, "_get", down)
+    monkeypatch.setattr(tiebreak.credentials, "past_picks", lambda: PICKS)
     group = [{"doi": "10.1/a", "title": "t", "abstract": "data deposited on Zenodo"}]
     tiebreak.annotate(group)
     assert group[0]["open_data"] == 1.0 and "top_inst" not in group[0]
     assert "similar" not in group[0] and "skipped" in capsys.readouterr().err
+
+
+def test_similarity_is_off_unless_the_reader_configures_past_picks(monkeypatch, capsys):
+    top = json.dumps({"results": []})
+    works = json.dumps({"results": []})
+    monkeypatch.setattr(tiebreak, "_get", fake_get({"institutions?": top, "works?": works}))
+    monkeypatch.setattr(tiebreak.credentials, "past_picks", lambda: None)
+    group = [{"doi": "10.1/a", "title": "t", "abstract": "a"}]
+    tiebreak.annotate(group)  # fake_get has no llms entry: fetching one would raise
+    assert "similar" not in group[0] and "top_inst" in group[0]
+    assert capsys.readouterr().err == ""

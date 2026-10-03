@@ -80,6 +80,26 @@ def test_ensure_api_key_raises_when_there_is_none(tmp_path, monkeypatch, body):
         credentials.ensure_api_key(tmp_path / "missing.json")
 
 
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ({}, None),
+        ({"past_picks": None}, None),
+        ({"past_picks": {"url": " ", "title_prefix": "X"}}, None),
+        ({"past_picks": {"url": "https://a/llms.txt"}}, ("https://a/llms.txt", "")),
+        (
+            {"past_picks": {"url": "https://a/l", "title_prefix": "Safari"}},
+            ("https://a/l", "Safari"),
+        ),
+    ],
+)
+def test_past_picks_is_off_by_default(tmp_path, body, expected):
+    path = tmp_path / "credentials.json"
+    path.write_text(json.dumps(body))
+    assert credentials.past_picks(path) == expected
+    assert credentials.past_picks(tmp_path / "missing.json") is None
+
+
 def test_subject_and_bodies():
     assert mailer.subject(DIGEST) == "Preprint intern: 2 picks for 2026-09-17"
     html, text = mailer.html_body(DIGEST), mailer.text_body(DIGEST)

@@ -38,7 +38,7 @@ private denylist kept outside the repo; the terms are not published, only the sc
   `.gitignore` and the `forbid-local-state` hook both refuse those filenames.
 - **Fetches:** unauthenticated GETs to `api.biorxiv.org` (bioRxiv and medRxiv) and
   `export.arxiv.org` (the date window and categories), and, for papers tied at the digest
-  cutoff, `api.openalex.org` (their DOIs) and the blog's public `llms-full.txt`.
+  cutoff, `api.openalex.org` (their DOIs) and, only if you set `past_picks`, that URL.
 - **Sends:** each preprint's title and abstract plus `profile.md` to OpenRouter (one call per
   preprint, plus a second for those tied at the digest cutoff; hard budget $0.25 per run), and one digest email to *your own* inbox over Gmail
   SMTP_SSL on port 465. Nothing else leaves the machine. `--dry-run` sends nothing.
