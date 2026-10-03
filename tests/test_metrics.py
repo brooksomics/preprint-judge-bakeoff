@@ -422,3 +422,21 @@ def test_labels_clear_each_other_the_markers_and_the_axes():
     inside = ax.get_window_extent(r)
     assert all(inside.contains(b.x0, b.y0) and inside.contains(b.x1, b.y1) for b in boxes)
     plt.close(fig)
+
+
+def test_mae_chart_numbers_each_dot_and_keys_the_names_closest_first(tmp_path, rows, monkeypatch):
+    rows += [
+        row("z/far", d, i, s) for d, s in (("a", 0.1), ("b", 0.9), ("c", 0.9)) for i in range(3)
+    ]
+    for r in rows:
+        r.setdefault("latency_s", 1.0)
+        r.setdefault("cost_usd", 0.001)
+    import figures
+
+    figs = []
+    monkeypatch.setattr(figures, "_save", lambda fig, path: figs.append(fig))
+    figures.plot_mae_vs_cost(analyze.metrics(rows, CEILING), tmp_path, CEILING)
+    [fig] = figs
+    assert sorted(t.get_text() for t in fig.axes[0].texts) == ["1", "2"]
+    key = [t.get_text().split()[:2] for t in fig.legends[0].get_texts()]
+    assert key == [["1", "m"], ["2", "far"]]  # m sits closer to the ceiling; provider dropped
