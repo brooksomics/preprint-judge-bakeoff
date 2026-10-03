@@ -12,7 +12,6 @@ from typing import NamedTuple
 from intern.credentials import Gmail
 
 SMTP_HOST, SMTP_PORT = "smtp.gmail.com", 465
-BIORXIV = "https://www.biorxiv.org/content/{doi}v{version}"
 
 
 class Digest(NamedTuple):
@@ -26,7 +25,7 @@ def subject(d: Digest) -> str:
 
 
 def _url(p: dict) -> str:
-    return BIORXIV.format(doi=p["doi"], version=p.get("version") or "1")
+    return f"https://doi.org/{p['doi']}"  # resolves for bioRxiv, medRxiv and arXiv alike
 
 
 def html_body(d: Digest) -> str:
