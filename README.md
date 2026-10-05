@@ -8,8 +8,8 @@ grades every cheap model by how closely it agrees with a frontier **ceiling** mo
 (Claude Sonnet 5). No human labels: the ceiling is the reference, and the question is
 which $0.001 model tracks it.
 
-It is the intern that does the abstract skim for
-[Journal Safari](https://www.bubbabrooks.info/blog/tag/journal-safari/), and the
+It is the robot intern that does the abstract skim for my
+[Journal Safari](https://www.bubbabrooks.info/blog/tag/journal-safari/), and the full
 write-up is
 [Calibrating a Cheap LLM Judge Against a Frontier Ceiling](https://www.bubbabrooks.info/blog/llm-judge-frontier-ceiling/).
 
@@ -59,7 +59,8 @@ uv run python -m intern --dry-run          # today's digest to stdout; sends not
 
 You are calibrating to a model, not to truth. A cheap judge with MAE 0.05 against the
 ceiling inherits every blind spot the ceiling has. The ceiling's own wrong-field count
-is the only check on that in this repo, and it is a weak one. Read the post for the
+is the only check on that in this repo, and it is a weak one.
+[Read the post](https://www.bubbabrooks.info/blog/llm-judge-frontier-ceiling/) for the
 longer version.
 
 ## License
