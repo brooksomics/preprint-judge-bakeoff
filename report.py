@@ -13,6 +13,11 @@ import probes
 from analyze import CEILING, COLUMNS, SHORTLIST, VIOLATION_AT
 
 MARK_START, MARK_END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
+# _cells column -> whether the best is the min or the max, for bolding the winner. Never bolded:
+# coverage-style columns (most rows tie at 100 or 0), P(<= best) (1.00 for the reference by
+# definition) and len rho (a bias check, not a score). Bold is the best point estimate as
+# printed, not a significant win.
+BOLD = {6: min, 7: min, 9: max, 10: max, 11: max, 13: max, 14: min, 15: min}
 
 
 def write_csv(m: dict, path: Path) -> None:
@@ -52,7 +57,7 @@ def _cells(k: str, r: dict) -> list[str]:
     ]
 
 
-def write_md(m: dict, path: Path) -> None:
+def write_md(m: dict, path: Path, ceiling: str = CEILING) -> None:
     cols = "| model | cov% | unscored | strict% | ladder strict / lenient / repaired "
     cols += "| wrong-field | sigma "
     cols += "| MAE vs ceiling [95% CI] | P(<= best) |"
@@ -60,7 +65,14 @@ def write_md(m: dict, path: Path) -> None:
         f"{cols} rho | kappa | alpha | len rho | top-{SHORTLIST} | latency s | $/call |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    md += ["| " + " | ".join(_cells(k, r)) + " |" for k, r in m.items()]
+    rows = [(k, _cells(k, r)) for k, r in m.items()]
+    rivals = [c for k, c in rows if k != ceiling and not k.startswith("baseline:")]
+    for i, pick in BOLD.items():  # the ceiling and the zero-cost baseline don't compete
+        shown = [(c, float(c[i].split()[0].split("/")[0])) for c in rivals if c[i] != "n/a"]
+        best = pick((v for _, v in shown), default=None)
+        for c, v in shown:
+            c[i] = f"**{c[i]}**" if v == best else c[i]
+    md += ["| " + " | ".join(c) + " |" for _, c in rows]
     path.write_text("\n".join(md) + "\n")
 
 
@@ -82,10 +94,10 @@ def write_agreement(table: list[dict], path: Path) -> None:
     path.write_text("\n".join(md) + "\n")
 
 
-def write_tables(m: dict, out: Path) -> None:
+def write_tables(m: dict, out: Path, ceiling: str = CEILING) -> None:
     out.mkdir(parents=True, exist_ok=True)
     write_csv(m, out / "results.csv")
-    write_md(m, out / "results.md")
+    write_md(m, out / "results.md", ceiling)
 
 
 def sync_results(doc: Path, table_md: str) -> None:
