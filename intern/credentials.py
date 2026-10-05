@@ -25,13 +25,15 @@ class Gmail:
 def load(path: Path = DEFAULT_PATH) -> Gmail:
     """Shape: {"gmail": {"sender": ..., "app_password": ...}, "receiver": ...}."""
     if not path.exists():
-        raise FileNotFoundError(f"no credentials at {path}; see credentials.json.example")
+        raise FileNotFoundError(f"no credentials at {path}; see intern/credentials.json.example")
     raw = json.loads(path.read_text())
     try:
         gmail = raw["gmail"]
         return Gmail(str(gmail["sender"]), str(gmail["app_password"]), str(raw["receiver"]))
     except (KeyError, TypeError) as e:
-        raise ValueError(f"credentials.json is missing {e}; see credentials.json.example") from e
+        raise ValueError(
+            f"credentials.json is missing {e}; see intern/credentials.json.example"
+        ) from e
 
 
 def ensure_api_key(path: Path = DEFAULT_PATH) -> None:

@@ -26,7 +26,7 @@ is why the intern runs it. The full table, and how to read it, is in
 bakeoff/               the bake-off; run each step as `uv run python -m bakeoff.<name>`
   fetch_preprints.py   bioRxiv API -> data/preprints.json (60 in-lane, 30 deliberately off-lane); --server medrxiv
   judge.py             the one prompt every model sees, and the parser that decides coverage
-  harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
+  harness.py           preprints x models x 3 repeats through OpenRouter, JSON mode (strict schema for the 3 #schema rows) -> data/results.jsonl
   analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, docs/RESULTS.md sync
   probes.py            bias probes: does the judge reward long abstracts? (len rho column, flagged vs the ceiling)
   gate.py              PASS/FAIL exit-code gate for the re-run (thresholds on results.csv + live model-id check)
