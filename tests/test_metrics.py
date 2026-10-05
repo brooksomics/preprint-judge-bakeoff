@@ -449,3 +449,26 @@ def test_usable_means_every_paper_scored_within_the_repeats(rows):
     assert (m["m"]["unscored"], m["m"]["usable"]) == (1, False)  # item c never scored
     assert m["x/flaky"]["cov"] == pytest.approx(200 / 3) and m["x/flaky"]["unscored"] == 0
     assert m["x/flaky"]["usable"] and analyze.best_usable(m, CEILING) == "x/flaky"
+
+
+def test_write_md_bolds_each_ranking_column_winner_among_challengers(tmp_path):
+    base = dict(cov=100.0, unscored=0, strict=100.0, cov_strict=100.0, cov_lenient=100.0)
+    base |= dict(cov_repaired=100.0, violations=0, mae_lo=0.0, mae_hi=0.0, mae_diff_p=1.0)
+    base |= {"kappa_0.5": 0.5, "alpha_ord": 0.5, "len_rho": 0.1, "latency_s": 1.0, "derived": False}
+    nan = float("nan")
+    m = {
+        "ceil": base | dict(sigma=0.001, mae=0.0, spearman=1.0, top10=10, cost_usd=0.004),
+        "a": base | dict(sigma=0.03, mae=0.08, spearman=0.9, top10=5, cost_usd=0.00006),
+        "b": base | dict(sigma=0.01, mae=0.07, spearman=0.8, top10=8, cost_usd=0.000064),
+        "baseline:x": base
+        | dict(sigma=nan, mae=nan, spearman=0.95, top10=9, cost_usd=0.0, derived=True),
+    }
+    report.write_md(m, tmp_path / "t.md", "ceil")
+    rows = (tmp_path / "t.md").read_text().splitlines()[2:]
+    line = {r.split(" | ")[0][2:]: r for r in rows}
+    assert "**0.070 [0.000, 0.000]**" in line["b"] and "**8/10**" in line["b"]
+    assert "**0.010**" in line["b"]  # sigma: steadiest
+    assert "**0.00006**" in line["a"] and "**0.00006**" in line["b"]  # tied as printed
+    assert "**0.90**" in line["a"]  # rho: the baseline (0.95) and the ceiling (1.00) don't compete
+    assert "**" not in line["ceil"] and "**" not in line["_baseline:x_"]
+    assert "**100.0**" not in "\n".join(rows) and "**0** |" not in "\n".join(rows)  # coverage-style

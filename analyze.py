@@ -199,7 +199,7 @@ def main() -> None:  # pragma: no cover
     rows = load_rows(a.results, a.preprints) + baseline.rows(a.preprints, a.profile)
     rows += ensembles.all_rows(rows)
     m = metrics(rows, a.ceiling)
-    report.write_tables(m, a.out)
+    report.write_tables(m, a.out, a.ceiling)
     figures.plot_all(m, a.out, a.ceiling)
     report.sync_results(Path("docs/RESULTS.md"), (a.out / "results.md").read_text())
     spec = disagreement.Spec(a.ceiling, a.top_disagreement)
