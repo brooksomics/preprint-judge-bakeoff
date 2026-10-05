@@ -2,7 +2,7 @@
 
 import pytest
 
-import disagreement
+from bakeoff import disagreement
 
 CEILING = "ceil"
 SPEC = disagreement.Spec(ceiling=CEILING, n=2)

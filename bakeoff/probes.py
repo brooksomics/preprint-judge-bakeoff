@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 import statistics as st
 
-import rankstats
+from bakeoff import rankstats
 
 FLAG_AT = 0.2
 

@@ -1,7 +1,7 @@
 """Exit-code gate for the re-run: is the production model still fit to ship?
 
-    uv run python gate.py --model tencent/hy3 --max-unscored 0 --max-mae-hi 0.12 --min-top10 5 \\
-        --max-violations 2
+    uv run python -m bakeoff.gate --model tencent/hy3 --max-unscored 0 --max-mae-hi 0.12 \\
+        --min-top10 5 --max-violations 2
 
 Reads results/results.csv, prints one PASS/FAIL line per check plus a final verdict, exits 0
 on PASS and 1 on FAIL. Also fails if the model id is no longer listed by OpenRouter (one GET),

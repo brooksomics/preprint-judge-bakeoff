@@ -1,7 +1,7 @@
 # Metrics and analyses
 
 Every column in `results/results.csv`, how it is computed, and the analyses that hang off it.
-All numbers are computed from `data/results.jsonl` by `analyze.py`; nothing here is typed in.
+All numbers are computed from `data/results.jsonl` by `bakeoff/analyze.py`; nothing here is typed in.
 
 ## Columns
 
@@ -73,7 +73,7 @@ CSV also carries `kappa_top10`, the same statistic on top-10 membership.
 What was tested: **length.** For every row, `len rho` is the Spearman correlation between an
 abstract's word count and the model's mean score for it. The ceiling has its own value, so the
 question is not "is rho zero" but "does the cheap judge reward length more or less than the
-model it is calibrated to"; `analyze.py` prints the rows more than 0.2 away from the ceiling.
+model it is calibrated to"; `bakeoff/analyze.py` prints the rows more than 0.2 away from the ceiling.
 
 What was not tested, and why: **position bias** (one abstract per call, nothing to reorder),
 **self-preference** (no model here judges its own writing), and the **padded-twin verbosity
@@ -88,7 +88,7 @@ papers it gets wrong, and those are the ones worth a human's time. [`results/dis
 ranks the 90 preprints by the population std dev of the usable models' mean scores (the
 same usable set as the table, ceiling excluded), names the model at each extreme
 next to the ceiling's own score, and lists the mirror image: the preprints every model
-agrees on. Regenerate with `uv run python analyze.py --top-disagreement 10`.
+agrees on. Regenerate with `uv run python -m bakeoff.analyze --top-disagreement 10`.
 
 ## Method notes
 
@@ -123,7 +123,7 @@ agrees on. Regenerate with `uv run python analyze.py --top-disagreement 10`.
   `content: null` for MiniMax M3 on every call it served and was the only one reporting
   reasoning tokens. It looked like it was ignoring `reasoning: {"enabled": false}`, but a
   control call with no reasoning parameter fails the same way: the answer was in another
-  field (next bullet). `analyze.py` prints coverage per (model, provider) for
+  field (next bullet). `bakeoff/analyze.py` prints coverage per (model, provider) for
   exactly this reason. Pin `provider: {"only": [...], "allow_fallbacks": false}` if
   you need a run to be reproducible.
 - **Read the answer out of whichever field it arrives in.** One provider (Parasail, serving
@@ -140,6 +140,6 @@ agrees on. Regenerate with `uv run python analyze.py --top-disagreement 10`.
   rung recovers the ceiling's own three parse failures (two control characters, one trailing
   comma) and two Mercury 2.5 bodies; everything else that failed was well-formed JSON with no
   `fit_score` key, which no repair can supply. The harness stores at most 2,000 characters of
-  each body, so a few long responses cannot be re-parsed post hoc; `analyze.py` prints how many.
+  each body, so a few long responses cannot be re-parsed post hoc; `bakeoff/analyze.py` prints how many.
 - The ceiling is scored with the same 3 repeats, so its row shows its own sigma and
   how many "wrong-field" calls the ceiling itself makes.

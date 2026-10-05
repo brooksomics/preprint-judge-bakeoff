@@ -7,10 +7,7 @@ from datetime import date
 
 import pytest
 
-import analyze
-import fetch_preprints
-import judge
-import report
+from bakeoff import analyze, fetch_preprints, judge, report
 
 CEILING = "ceiling/model"
 
@@ -350,7 +347,7 @@ def test_figures_write_two_pngs(tmp_path, rows):
     for r in rows:
         r.setdefault("latency_s", 1.0)
         r.setdefault("cost_usd", 0.001)
-    import figures
+    from bakeoff import figures
 
     figures.plot_all(analyze.metrics(rows, CEILING), tmp_path, CEILING)
     assert (tmp_path / "fig_mae_vs_cost.png").exists() and (tmp_path / "fig_coverage.png").exists()
@@ -358,7 +355,7 @@ def test_figures_write_two_pngs(tmp_path, rows):
 
 def test_unpack_falls_back_to_the_reasoning_field_when_content_is_empty():
     """One provider returns the completion in message.reasoning and leaves content null."""
-    import harness
+    from bakeoff import harness
 
     answer = '{"fit_score": 0.3, "field": "bioinformatics", "rationale": "ok"}'
     misrouted = {
@@ -376,7 +373,7 @@ def test_unpack_falls_back_to_the_reasoning_field_when_content_is_empty():
 
 
 def test_unpack_records_a_parse_error_when_both_fields_are_unusable():
-    import harness
+    from bakeoff import harness
 
     resp = {"choices": [{"message": {"content": "", "reasoning": ""}}], "usage": {}}
     got = harness.unpack(resp)
@@ -391,7 +388,7 @@ def test_violations_count_calls_not_preprints(rows):
 
 
 def test_unusable_rows_are_greyed_out():
-    import figures
+    from bakeoff import figures
 
     assert figures._color("a/b", usable=False) == figures.MUTED
     assert figures._color("a/b") == figures.BASE
@@ -403,7 +400,7 @@ def test_labels_clear_each_other_the_markers_and_the_axes():
 
     import matplotlib.pyplot as plt
 
-    import figures
+    from bakeoff import figures
 
     fig, ax = plt.subplots(figsize=(7.5, 4.8))
     # the published run's densest cluster: hy3, mimo, both mercury rows, qwen, an ensemble
@@ -431,7 +428,7 @@ def test_mae_chart_numbers_each_dot_and_keys_the_names_closest_first(tmp_path, r
     for r in rows:
         r.setdefault("latency_s", 1.0)
         r.setdefault("cost_usd", 0.001)
-    import figures
+    from bakeoff import figures
 
     figs = []
     monkeypatch.setattr(figures, "_save", lambda fig, path: figs.append(fig))

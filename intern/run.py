@@ -21,8 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
 
-import fetch_preprints
-import harness
+from bakeoff import fetch_preprints, harness
 from intern import arxiv, credentials, mailer, tiebreak
 
 STATE_DIR = Path("~/.preprint-judge").expanduser()

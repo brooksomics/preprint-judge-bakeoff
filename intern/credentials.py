@@ -35,7 +35,7 @@ def load(path: Path = DEFAULT_PATH) -> Gmail:
 
 
 def ensure_api_key(path: Path = DEFAULT_PATH) -> None:
-    """Put the OpenRouter key in the environment, where harness.py reads it on every call.
+    """Put the OpenRouter key in the environment, where bakeoff/harness.py reads it on every call.
 
     An exported key always wins, so interactive runs are unaffected; otherwise it comes from
     `openrouter_api_key` in the credentials file. Raises if neither has it.

@@ -2,9 +2,7 @@
 
 import pytest
 
-import analyze
-import ensembles
-import report
+from bakeoff import analyze, ensembles, report
 
 CEILING = "ceil"
 COMBO = ("lab/a", "lab/b", "lab/c@low")
