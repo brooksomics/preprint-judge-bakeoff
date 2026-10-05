@@ -9,7 +9,7 @@ grades every cheap model by how closely it agrees with a frontier **ceiling** mo
 which $0.001 model tracks it.
 
 It is the robot intern that does the abstract skim for my
-[Journal Safari](https://www.bubbabrooks.info/blog/tag/journal-safari/), and the full
+[Journal Safari](https://www.bubbabrooks.info/tags/journal-safari/), and the full
 write-up is
 [Calibrating a Cheap LLM Judge Against a Frontier Ceiling](https://www.bubbabrooks.info/blog/llm-judge-frontier-ceiling/).
 
