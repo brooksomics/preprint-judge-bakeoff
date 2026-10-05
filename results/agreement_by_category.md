@@ -98,6 +98,12 @@ Verdict rule: reliable iff kappa_0.5 >= 0.6 and n >= 8.
 | openai/gpt-5.6-luna | off-lane | 30 | 0.00 | slight | 0.32 | not reliable |
 | openai/gpt-5.6-luna | systems biology | 15 | 0.33 | fair | 0.55 | not reliable |
 | openai/gpt-5.6-luna | all | 86 | 0.25 | fair | 0.43 | not reliable |
+| openai/gpt-6-luna | bioinformatics | 14 | 0.00 | slight | -0.03 | not reliable |
+| openai/gpt-6-luna | genomics | 15 | 0.19 | slight | 0.23 | not reliable |
+| openai/gpt-6-luna | microbiology | 12 | 0.23 | fair | 0.33 | not reliable |
+| openai/gpt-6-luna | off-lane | 30 | 0.00 | slight | 0.18 | not reliable |
+| openai/gpt-6-luna | systems biology | 15 | 0.44 | moderate | 0.57 | not reliable |
+| openai/gpt-6-luna | all | 86 | 0.20 | slight | 0.36 | not reliable |
 | qwen/qwen3.8-flash | bioinformatics | 14 | 0.00 | slight | 0.06 | not reliable |
 | qwen/qwen3.8-flash | genomics | 15 | 0.59 | moderate | 0.69 | not reliable |
 | qwen/qwen3.8-flash | microbiology | 12 | 0.31 | fair | 0.62 | not reliable |
@@ -110,12 +116,24 @@ Verdict rule: reliable iff kappa_0.5 >= 0.6 and n >= 8.
 | tencent/hy3 | off-lane | 30 | 1.00 | almost perfect | 0.48 | reliable |
 | tencent/hy3 | systems biology | 15 | 0.44 | moderate | 0.77 | not reliable |
 | tencent/hy3 | all | 86 | 0.36 | fair | 0.72 | not reliable |
+| upstage/solar-mini4 | bioinformatics | 14 | 0.00 | slight | -0.40 | not reliable |
+| upstage/solar-mini4 | genomics | 15 | 0.59 | moderate | 0.42 | not reliable |
+| upstage/solar-mini4 | microbiology | 12 | 0.00 | slight | 0.26 | not reliable |
+| upstage/solar-mini4 | off-lane | 30 | 0.00 | slight | -0.10 | not reliable |
+| upstage/solar-mini4 | systems biology | 15 | 0.19 | slight | 0.31 | not reliable |
+| upstage/solar-mini4 | all | 86 | 0.23 | fair | 0.21 | not reliable |
 | xiaomi/mimo-v2.5 | bioinformatics | 14 | 0.00 | slight | 0.31 | not reliable |
 | xiaomi/mimo-v2.5 | genomics | 15 | 0.59 | moderate | 0.73 | not reliable |
 | xiaomi/mimo-v2.5 | microbiology | 12 | 0.62 | substantial | 0.73 | reliable |
 | xiaomi/mimo-v2.5 | off-lane | 30 | 1.00 | almost perfect | 0.44 | reliable |
 | xiaomi/mimo-v2.5 | systems biology | 15 | 0.33 | fair | 0.55 | not reliable |
 | xiaomi/mimo-v2.5 | all | 86 | 0.43 | moderate | 0.66 | not reliable |
+| xiaomi/mimo-v2.6-flash | bioinformatics | 14 | 0.00 | slight | 0.11 | not reliable |
+| xiaomi/mimo-v2.6-flash | genomics | 15 | 0.37 | fair | 0.56 | not reliable |
+| xiaomi/mimo-v2.6-flash | microbiology | 12 | 0.62 | substantial | 0.64 | reliable |
+| xiaomi/mimo-v2.6-flash | off-lane | 30 | 0.00 | slight | 0.22 | not reliable |
+| xiaomi/mimo-v2.6-flash | systems biology | 15 | 0.33 | fair | 0.50 | not reliable |
+| xiaomi/mimo-v2.6-flash | all | 86 | 0.33 | fair | 0.54 | not reliable |
 | z-ai/glm-5.3-flash | bioinformatics | 14 | 0.00 | slight | -0.09 | not reliable |
 | z-ai/glm-5.3-flash | genomics | 15 | 0.59 | moderate | 0.59 | not reliable |
 | z-ai/glm-5.3-flash | microbiology | 12 | 0.43 | moderate | 0.55 | not reliable |

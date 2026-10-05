@@ -54,11 +54,11 @@ def test_mae_interval_brackets_mae_and_reference_has_p_one(rows):
     assert m[CEILING]["mae_diff_p"] == 1.0  # the ceiling beats everything in every resample
 
 
-def test_sync_readme_replaces_only_the_table(tmp_path):
-    readme = tmp_path / "README.md"
+def test_sync_results_replaces_only_the_table(tmp_path):
+    readme = tmp_path / "RESULTS.md"
     frame = "intro\n<!-- RESULTS:START -->\nprose\n{}\n\nmore\n<!-- RESULTS:END -->\ntail\n"
     readme.write_text(frame.format("| a |\n|---|\n| 1 |"))
-    report.sync_readme(readme, "| b |\n|---|\n| 2 |\n")
+    report.sync_results(readme, "| b |\n|---|\n| 2 |\n")
     assert readme.read_text() == frame.format("| b |\n|---|\n| 2 |")
 
 
@@ -248,7 +248,7 @@ def test_results_table_roundtrip(tmp_path, rows):
     report.write_tables(m, tmp_path)
     csv = (tmp_path / "results.csv").read_text().splitlines()
     assert csv[0].startswith(
-        "label,cov,strict,cov_strict,cov_lenient,cov_repaired,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
+        "label,cov,unscored,strict,cov_strict,cov_lenient,cov_repaired,violations,sigma,mae,mae_lo,mae_hi,mae_diff_p,spearman,kappa_0.5,alpha_ord,kappa_top10,len_rho,top10"
     )
     assert json.dumps(m)  # serializable
 
@@ -388,3 +388,64 @@ def test_violations_count_calls_not_preprints(rows):
     m = analyze.metrics(rows, CEILING)["m"]
     off = [r for r in rows if r["label"] == "m" and r["lane"] == "off"]
     assert len({r["doi"] for r in off}) == 1 and m["violations"] == 2
+
+
+def test_unusable_rows_are_greyed_out():
+    import figures
+
+    assert figures._color("a/b", usable=False) == figures.MUTED
+    assert figures._color("a/b") == figures.BASE
+    assert figures._color("a/b@low") == figures.REASONING  # the coverage chart never mutes
+
+
+def test_labels_clear_each_other_the_markers_and_the_axes():
+    import itertools
+
+    import matplotlib.pyplot as plt
+
+    import figures
+
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
+    # the published run's densest cluster: hy3, mimo, both mercury rows, qwen, an ensemble
+    pts = [(6e-5, 0.088), (7e-5, 0.103), (6.8e-5, 0.120), (7.2e-5, 0.120), (9.5e-5, 0.118)]
+    pts += [(2.0e-4, 0.093), (2.1e-4, 0.099), (1.3e-4, 0.092), (1.4e-4, 0.096)]
+    ax.scatter(*zip(*pts, strict=True), s=70)
+    ax.set_xscale("log")
+    ax.set_xlim(5e-5, 1e-3)
+    ax.set_ylim(0.05, 0.2)
+    fig.tight_layout()
+    names = [f"ens:model-{i}+other-model+third-model" if i == 5 else f"model-{i}" for i in range(9)]
+    texts = figures._place_labels(ax, [(n, xy, "k") for n, xy in zip(names, pts, strict=True)])
+    r = fig.canvas.get_renderer()
+    boxes = [t.get_window_extent(r) for t in texts]
+    assert not any(a.overlaps(b) for a, b in itertools.combinations(boxes, 2))
+    inside = ax.get_window_extent(r)
+    assert all(inside.contains(b.x0, b.y0) and inside.contains(b.x1, b.y1) for b in boxes)
+    plt.close(fig)
+
+
+def test_mae_chart_numbers_each_dot_and_keys_the_names_closest_first(tmp_path, rows, monkeypatch):
+    rows += [
+        row("z/far", d, i, s) for d, s in (("a", 0.1), ("b", 0.9), ("c", 0.9)) for i in range(3)
+    ]
+    for r in rows:
+        r.setdefault("latency_s", 1.0)
+        r.setdefault("cost_usd", 0.001)
+    import figures
+
+    figs = []
+    monkeypatch.setattr(figures, "_save", lambda fig, path: figs.append(fig))
+    figures.plot_mae_vs_cost(analyze.metrics(rows, CEILING), tmp_path, CEILING)
+    [fig] = figs
+    assert sorted(t.get_text() for t in fig.axes[0].texts) == ["1", "2"]
+    key = [t.get_text().split()[:2] for t in fig.legends[0].get_texts()]
+    assert key == [["1", "m"], ["2", "far"]]  # m sits closer to the ceiling; provider dropped
+
+
+def test_usable_means_every_paper_scored_within_the_repeats(rows):
+    # misses a call on every paper but never a whole paper: usable at 67% per-call coverage
+    rows += [row("x/flaky", d, i, None if i == 0 else 0.8) for d in "abc" for i in range(3)]
+    m = analyze.metrics(rows, CEILING)
+    assert (m["m"]["unscored"], m["m"]["usable"]) == (1, False)  # item c never scored
+    assert m["x/flaky"]["cov"] == pytest.approx(200 / 3) and m["x/flaky"]["unscored"] == 0
+    assert m["x/flaky"]["usable"] and analyze.best_usable(m, CEILING) == "x/flaky"

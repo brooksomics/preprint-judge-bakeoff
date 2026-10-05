@@ -1,3 +1,30 @@
+# Results
+
+The table is regenerated between the markers by `uv run python analyze.py`; the prose around it
+is not. Every column is defined in [METRICS.md](METRICS.md); in one line each:
+
+| column             | one line                                                                          |
+| ------------------ | --------------------------------------------------------------------------------- |
+| **cov%** / ladder  | calls with a parseable score; strict / lenient / repaired parser rungs            |
+| **unscored**       | preprints with no score in any of the 3 repeats; usable means 0                   |
+| **wrong-field**    | off-lane calls scored >= 0.5                                                      |
+| **sigma**          | spread across the 3 repeats                                                       |
+| **MAE [95% CI]**   | distance from the ceiling, bootstrap interval over preprints                      |
+| **P(<= best)**     | paired bootstrap: share of resamples where this row beats the best single model   |
+| **rho / kappa / alpha / len rho** | rank, decision and binned agreement with the ceiling; length bias      |
+| **top-10**         | how many of the ceiling's top ten the model also shortlisted                      |
+| **latency, $/call** | measured, not the price sheet                                                    |
+
+<!-- RESULTS:START -->
+
+Run of 2026-09-11, re-scored 2026-09-12 after the `message.reasoning` fix, three
+`json_schema` reruns on 2026-09-13, and three models released since added on 2026-10-03
+(MiMo V2.6 Flash, GPT-6 Luna, Solar Mini 4): 90 preprints x 21 model configurations x 3
+repeats = 5,670 calls, $2.90 measured, of which $1.06 was the ceiling, $0.63 the reruns and
+$0.08 the additions.
+Rows suffixed `#schema` ran with strict structured output instead of JSON mode; italic
+rows are derived from other rows, not API calls.
+
 | model | cov% | unscored | strict% | ladder strict / lenient / repaired | wrong-field | sigma | MAE vs ceiling [95% CI] | P(<= best) | rho | kappa | alpha | len rho | top-10 | latency s | $/call |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | anthropic/claude-sonnet-5 | 94.4 | 4 | 97.3 | 91.9 / 94.4 / 95.6 | 0 | 0.011 | 0.000 [0.000, 0.000] | 1.00 | 1.00 | 1.00 | 1.00 | 0.05 | 10/10 | 3.25 | 0.00394 |
@@ -25,3 +52,25 @@
 | openai/gpt-6-luna | 100.0 | 0 | 100.0 | 100.0 / 100.0 / 100.0 | 9 | 0.033 | 0.207 [0.168, 0.248] | 0.00 | 0.92 | 0.20 | 0.36 | 0.13 | 7/10 | 1.90 | 0.00012 |
 | upstage/solar-mini4 | 100.0 | 0 | 100.0 | 100.0 / 100.0 / 100.0 | 8 | 0.066 | 0.215 [0.186, 0.246] | 0.00 | 0.83 | 0.23 | 0.21 | 0.11 | 4/10 | 2.19 | 0.00006 |
 | _baseline:tfidf_ | 100.0 | 0 | 100.0 | n/a / n/a / n/a | 2 | n/a | n/a | n/a | 0.56 | n/a | n/a | 0.29 | 4/10 | 0.00 | 0.00000 |
+
+A configuration is usable when every preprint gets a score within its three repeats
+(`unscored` = 0): a call that fails and then succeeds costs one more call, but a preprint never
+scored is a blind spot, and the intern retries twice. Every challenger clears that bar; only the
+ceiling does not, with 4 preprints unscored on all three tries. `minimax/minimax-m3@low` has the
+lowest MAE, 0.072 [0.054, 0.092], and is the reference for the `P(<= best)` column. It fails
+3.7% of single calls (well-formed JSON with no `fit_score` key in it, on two providers),
+but never twice on the same preprint. `tencent/hy3` is next among single models at 0.088 and
+costs about 4.3 times less per call (measured means $0.0000628 against $0.0002708); it matches or
+beats MiniMax in 4% of resamples, but the paired interval on the gap, 0.015 [-0.002, 0.032],
+includes zero, and MiniMax is the post-hoc best of twenty: a small edge, not a settled one. Every other row sits at P <= 0.04.
+Among single models, `minimax/minimax-m3` and `deepseek/deepseek-v4.1-flash` matched the most of
+the ceiling's own top ten (8/10) while ranking well below on MAE, which is why both columns are
+here. The three models added on 2026-10-03 all land in the bottom third, and two of them do
+worse than the versions they replace (MiMo V2.6 Flash against V2.5, GPT-6 Luna against 5.6).
+
+Reproduce with `uv run python analyze.py` against `data/results.jsonl`.
+
+<!-- RESULTS:END -->
+
+![MAE against measured cost per call](../results/fig_mae_vs_cost.png)
+![Coverage by model configuration](../results/fig_coverage.png)

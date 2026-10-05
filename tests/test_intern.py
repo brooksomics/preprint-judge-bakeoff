@@ -80,10 +80,30 @@ def test_ensure_api_key_raises_when_there_is_none(tmp_path, monkeypatch, body):
         credentials.ensure_api_key(tmp_path / "missing.json")
 
 
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ({}, None),
+        ({"past_picks": None}, None),
+        ({"past_picks": {"url": " ", "title_prefix": "X"}}, None),
+        ({"past_picks": {"url": "https://a/llms.txt"}}, ("https://a/llms.txt", "")),
+        (
+            {"past_picks": {"url": "https://a/l", "title_prefix": "Safari"}},
+            ("https://a/l", "Safari"),
+        ),
+    ],
+)
+def test_past_picks_is_off_by_default(tmp_path, body, expected):
+    path = tmp_path / "credentials.json"
+    path.write_text(json.dumps(body))
+    assert credentials.past_picks(path) == expected
+    assert credentials.past_picks(tmp_path / "missing.json") is None
+
+
 def test_subject_and_bodies():
     assert mailer.subject(DIGEST) == "Preprint intern: 2 picks for 2026-09-17"
     html, text = mailer.html_body(DIGEST), mailer.text_body(DIGEST)
-    assert 'href="https://www.biorxiv.org/content/10.1101/2026.09.01.1v2"' in html
+    assert 'href="https://doi.org/10.1101/2026.09.01.1"' in html
     assert "0.91" in html and "genomics" in html and "Directly on a listed interest." in html
     assert "$0.0312" in html and "$0.0312" in text and "Beta paper" in text
     msg = mailer.build(CREDS, DIGEST)
@@ -130,12 +150,30 @@ def test_due_enforces_the_biweekly_gap():
 
 
 def test_budget_guard_before_and_after_scoring(monkeypatch):
-    items = [{"doi": str(i)} for i in range(2000)]
+    items = [{"doi": str(i)} for i in range(int(run.BUDGET_USD / run.EST_PER_CALL) + 1)]
     with pytest.raises(RuntimeError, match="budget"):
         run.score(items, ("m", "off"))
-    monkeypatch.setattr(run.harness, "run_one", lambda t: {"doi": t[1]["doi"], "cost_usd": 0.06})
+    monkeypatch.setattr(
+        run.harness, "run_one", lambda t: {"doi": t[1]["doi"], "cost_usd": run.BUDGET_USD}
+    )
     with pytest.raises(RuntimeError, match="budget"):
         run.score(items[:2], ("m", "off"))
+
+
+def test_fetch_recent_pages_the_whole_window_v1_only_on_all_servers(monkeypatch):
+    def fake_category(cat, window, cap):  # oldest-first, like the real API
+        n = 250 if cat == "bioinformatics" else 1
+        rows = [{"doi": f"{cat}/{i}", "version": "1", "server": window.server} for i in range(n)]
+        return (rows + [{"doi": f"{cat}/revised", "version": "2", "server": window.server}])[:cap]
+
+    monkeypatch.setattr(run.fetch_preprints, "fetch_category", fake_category)
+    monkeypatch.setattr(run.arxiv, "fetch", lambda start: [{"doi": "ax", "server": "arXiv"}])
+    rows = run.fetch_recent(14)
+    dois = {r["doi"] for r in rows}
+    assert "bioinformatics/249" in dois  # the newest row survives: no cap
+    assert not any(d.endswith("/revised") for d in dois)  # revisions are not new papers
+    assert {r["server"] for r in rows} == {"biorxiv", "medrxiv", "arXiv"}
+    assert "genetic and genomic medicine/0" in dois and all(r["lane"] == "in" for r in rows)
 
 
 def test_rank_takes_scored_items_only():
@@ -145,6 +183,68 @@ def test_rank_takes_scored_items_only():
         {"doi": "c", "fit_score": 0.9},
     ]
     assert [r["doi"] for r in run.rank(rows, 5)] == ["c", "a"]
+
+
+def test_rank_does_not_hand_every_tie_to_one_server():
+    # ~9% of papers tie at exactly 0.85; a DOI tie-break gives them all to the prefix that sorts
+    # first (arXiv's 10.48550 before bioRxiv's 10.64898), so the digest was all-arXiv
+    rows = [
+        {"doi": f"{prefix}/{i}", "server": prefix, "fit_score": 0.85}
+        for prefix in ("10.48550", "10.64898")
+        for i in range(100)
+    ]
+    assert {r["server"] for r in run.rank(rows, 10)} == {"10.48550", "10.64898"}
+
+
+def test_break_ties_rescores_only_the_group_at_the_cutoff(monkeypatch):
+    rows = [
+        {"doi": d, "title": d, "abstract": "x", "category": "c", "lane": "in", "fit_score": f}
+        for d, f in [
+            ("a", 0.9),
+            ("b", 0.9),
+            ("t1", 0.85),
+            ("t2", 0.85),
+            ("t3", 0.85),
+            ("t4", 0.85),
+            ("t5", 0.85),
+            ("z", 0.5),
+        ]
+    ]
+    second = {"t1": 0.6, "t2": 0.95, "t3": 0.7, "t4": 0.9, "t5": 0.1}
+    calls = []
+
+    def fake(t):
+        (model, *_), item, _ = t
+        calls.append((model, item["doi"]))
+        return {"doi": item["doi"], "fit_score": second[item["doi"]], "cost_usd": 0.0002}
+
+    monkeypatch.setattr(run.harness, "run_one", fake)
+    annotated = []
+    monkeypatch.setattr(run.tiebreak, "annotate", lambda g: annotated.extend(r["doi"] for r in g))
+    spent = run.break_ties(rows, 4)
+    assert sorted(annotated) == ["t1", "t2", "t3", "t4", "t5"]
+    assert sorted(d for _, d in calls) == ["t1", "t2", "t3", "t4", "t5"]
+    assert {m for m, _ in calls} == {run.RERANK[0]}
+    assert spent == pytest.approx(0.001)
+    picked = [r["doi"] for r in run.rank(rows, 4)]
+    assert set(picked[:2]) == {"a", "b"} and picked[2:] == ["t2", "t4"]  # rerank decides the 0.85s
+
+
+def test_rank_applies_the_secondary_keys_in_order():
+    tied = {"fit_score": 0.85, "tiebreak": 0.9}
+    rows = [
+        {"doi": "plain", **tied},
+        {"doi": "similar", **tied, "similar": 0.9},
+        {"doi": "data", **tied, "open_data": 1.0},
+        {"doi": "inst", **tied, "top_inst": 1.0, "similar": 0.1},
+    ]
+    assert [r["doi"] for r in run.rank(rows, 4)] == ["inst", "data", "similar", "plain"]
+
+
+def test_break_ties_spends_nothing_without_a_tie_at_the_cutoff(monkeypatch):
+    rows = [{"doi": d, "fit_score": f} for d, f in [("a", 0.9), ("b", 0.8), ("c", 0.8)]]
+    monkeypatch.setattr(run.harness, "run_one", lambda t: pytest.fail("no rerank needed"))
+    assert run.break_ties(rows, 1) == 0 and run.break_ties(rows, 5) == 0
 
 
 def test_record_appends_dois_and_log(tmp_path):
@@ -162,10 +262,10 @@ def test_record_appends_dois_and_log(tmp_path):
 def test_dry_run_renders_and_sends_nothing(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.setattr(run, "STATE", (tmp_path / "seen.json", tmp_path / "intern.log"))
+    monkeypatch.setattr(run, "fetch_recent", lambda days: [{**p, "abstract": "x"} for p in PICKS])
     monkeypatch.setattr(
-        run, "fetch_recent", lambda days, cap: [{**p, "abstract": "x"} for p in PICKS]
+        run.harness, "run_one", lambda t: {**t[1], "title": t[1]["title"][:3], "cost_usd": 5e-5}
     )
-    monkeypatch.setattr(run.harness, "run_one", lambda t: {**t[1], "cost_usd": 0.00005})
     monkeypatch.setattr(mailer, "send", lambda *a: pytest.fail("must not send"))
     assert run.main(["--dry-run", "--top", "1"]) == 0
     out = capsys.readouterr().out
@@ -179,9 +279,7 @@ def test_live_run_sends_and_records(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     seen_path = tmp_path / "seen.json"
     monkeypatch.setattr(run, "STATE", (seen_path, tmp_path / "intern.log"))
-    monkeypatch.setattr(
-        run, "fetch_recent", lambda days, cap: [{**p, "abstract": "x"} for p in PICKS]
-    )
+    monkeypatch.setattr(run, "fetch_recent", lambda days: [{**p, "abstract": "x"} for p in PICKS])
     monkeypatch.setattr(run.harness, "run_one", lambda t: {**t[1], "cost_usd": 0.00005})
     monkeypatch.setattr(credentials, "load", lambda: CREDS)
     sent = []
@@ -190,3 +288,20 @@ def test_live_run_sends_and_records(monkeypatch, tmp_path):
     assert len(sent) == 1 and len(sent[0].picks) == 2
     assert json.loads(seen_path.read_text())["last_sent"] == date.today().isoformat()
     assert run.main([]) == 0 and len(sent) == 1  # not due again: nothing sent
+
+
+def test_score_retries_unscored_papers_twice_and_charges_every_call(monkeypatch):
+    calls = {}
+
+    def flaky(t):
+        doi = t[1]["doi"]
+        calls[doi] = calls.get(doi, 0) + 1
+        ok = doi == "second-try" and calls[doi] > 1
+        return {"doi": doi, "fit_score": 0.5 if ok else None, "cost_usd": 0.001}
+
+    monkeypatch.setattr(run.harness, "run_one", flaky)
+    got = {r["doi"]: r for r in run.score([{"doi": "second-try"}, {"doi": "never"}], ("m", "off"))}
+    assert got["second-try"]["fit_score"] == 0.5 and calls["second-try"] == 2
+    assert got["second-try"]["cost_usd"] == pytest.approx(0.002)
+    assert got["never"]["fit_score"] is None and calls["never"] == 3
+    assert got["never"]["cost_usd"] == pytest.approx(0.003)

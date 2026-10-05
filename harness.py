@@ -46,6 +46,10 @@ MODELS = [
     ("qwen/qwen3.8-flash", "off"),
     ("z-ai/glm-5.3-flash", "default"),  # refuses enabled=false too
     ("inception/mercury-2.5", "off"),
+    # released after the September roster (OpenRouter scan 2026-10-03): newest cheap tier per lab
+    ("xiaomi/mimo-v2.6-flash", "off"),
+    ("openai/gpt-6-luna", "off"),
+    ("upstage/solar-mini4", "off"),
     # json_schema strict mode reruns (2026-09-13): does structured output fix the fence?
     ("anthropic/claude-haiku-4.5", "off", "json_schema"),
     ("z-ai/glm-5.3-flash", "default", "json_schema"),

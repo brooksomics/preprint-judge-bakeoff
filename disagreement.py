@@ -1,8 +1,9 @@
 """Disagreement audit: which preprints do the usable models split on most, and least.
 
-For each preprint, take every usable model's mean score (>= USABLE_COV coverage, ceiling excluded)
-and rank preprints by the population std dev of those means, highest first. The items at the top
-are the ones a human should read; the mirror list (lowest spread) shows what everyone agrees on.
+For each preprint, take every usable model's mean score (no preprint left unscored, ceiling
+excluded) and rank preprints by the population std dev of those means, highest first. The items
+at the top are the ones a human should read; the mirror list (lowest spread) shows what everyone
+agrees on.
 """
 
 from __future__ import annotations
@@ -11,8 +12,6 @@ import statistics as st
 from collections import defaultdict
 from typing import NamedTuple
 
-from analyze import USABLE_COV
-
 
 class Spec(NamedTuple):
     ceiling: str
@@ -20,7 +19,7 @@ class Spec(NamedTuple):
 
 
 def usable_labels(m: dict, ceiling: str) -> list[str]:
-    return sorted(k for k, r in m.items() if k != ceiling and r["cov"] >= USABLE_COV)
+    return sorted(k for k, r in m.items() if k != ceiling and r["usable"])
 
 
 def _means(rows: list[dict]) -> tuple[dict, dict]:
@@ -82,7 +81,8 @@ def markdown(rows: list[dict], m: dict, spec: Spec) -> str:
         f"# Where the {n_models} usable models disagree",
         "",
         f"Population std dev of the per-model mean score, over the {n_models} usable models "
-        f"(>= {USABLE_COV:.0f}% coverage, ceiling excluded). `ceiling` is the ceiling's own mean.",
+        "(every preprint scored within the repeats, ceiling excluded). `ceiling` is the "
+        "ceiling's own mean.",
         "",
         f"## Top {len(top)} most disputed",
         "",

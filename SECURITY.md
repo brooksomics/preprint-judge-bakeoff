@@ -36,8 +36,11 @@ private denylist kept outside the repo; the terms are not published, only the sc
   launchd starts no shell, so the unattended run takes the key from that file. State in
   `~/.preprint-judge/seen.json` and `intern.log`. None of it is in the repo;
   `.gitignore` and the `forbid-local-state` hook both refuse those filenames.
+- **Fetches:** unauthenticated GETs to `api.biorxiv.org` (bioRxiv and medRxiv) and
+  `export.arxiv.org` (the date window and categories), and, for papers tied at the digest
+  cutoff, `api.openalex.org` (their DOIs) and, only if you set `past_picks`, that URL.
 - **Sends:** each preprint's title and abstract plus `profile.md` to OpenRouter (one call per
-  preprint, hard budget $0.10 per run), and one digest email to *your own* inbox over Gmail
+  preprint, plus a second for those tied at the digest cutoff; hard budget $0.25 per run), and one digest email to *your own* inbox over Gmail
   SMTP_SSL on port 465. Nothing else leaves the machine. `--dry-run` sends nothing.
 - **Rotate:** revoke the Gmail app password at https://myaccount.google.com/apppasswords and the
   OpenRouter key at https://openrouter.ai/settings/keys, then write the new values into

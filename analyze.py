@@ -11,7 +11,9 @@ Metrics, per model config:
   mae         mean over preprints of |model mean - ceiling mean| (agreement with the ceiling)
   mae_lo/hi   95% bootstrap interval on mae: preprints resampled with replacement (bootstrap.py)
   mae_diff_p  paired bootstrap: share of resamples where this model's MAE <= the best usable
-              model's (lowest MAE at >= USABLE_COV coverage). 1.0 for the reference itself.
+              model's (lowest MAE among usable models). 1.0 for the reference itself.
+  unscored    preprints with no parseable score in any repeat. A model is usable when this is
+              0: a miss that a retry recovers costs a call, a paper never scored is a blind spot
   spearman    rank correlation between the model's and the ceiling's per-preprint means
   kappa_0.5   Cohen's kappa on the decision score >= 0.5, model vs ceiling (agreement.py)
   alpha_ord   Krippendorff's alpha over 0.1 bins, squared bin distance, model vs ceiling
@@ -46,6 +48,7 @@ CEILING = "anthropic/claude-sonnet-5"
 COLUMNS = (
     "label",
     "cov",
+    "unscored",
     "strict",
     "cov_strict",
     "cov_lenient",
@@ -69,7 +72,7 @@ COLUMNS = (
 )
 VIOLATION_AT = 0.5
 SHORTLIST = 10
-USABLE_COV = 99.0
+MAX_UNSCORED = 0  # usable: every preprint scored within the repeats
 DERIVED = ("baseline:", "ens:")  # rows computed from other rows, not API calls
 UNSCALED = ("baseline:",)  # not a fit score: MAE against the ceiling is meaningless
 
@@ -128,8 +131,11 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
     sig = [st.stdev(s) for rs in by_item.values() if len(s := _scores(rs)) >= 2]
     costs = [c for r in runs if (c := r.get("cost_usd")) is not None]
     off = [r for r in scored if r["lane"] == "off"]
+    unscored = sum(1 for rs in by_item.values() if not _scores(rs))
     return {
         "cov": 100 * len(scored) / len(runs),
+        "unscored": unscored,
+        "usable": unscored <= MAX_UNSCORED,
         "strict": 100 * sum(bool(r.get("strict_json")) for r in scored) / len(scored)
         if scored
         else math.nan,
@@ -146,9 +152,10 @@ def _one(by_item: dict, ceiling_means: dict) -> dict:
 
 def best_usable(m: dict, ceiling: str) -> str:
     """Reference for the paired test: lowest MAE among single (non-derived, non-ceiling) models
-    at >= USABLE_COV coverage; falls back to the lowest MAE overall, then to the ceiling."""
+    among usable models (every preprint scored within the repeats); falls back to the lowest
+    MAE overall, then to the ceiling."""
     cands = [k for k, r in m.items() if k != ceiling and not (math.isnan(r["mae"]) or r["derived"])]
-    usable = [k for k in cands if m[k]["cov"] >= USABLE_COV] or cands or [ceiling]
+    usable = [k for k in cands if m[k]["usable"]] or cands or [ceiling]
     return min(usable, key=lambda k: m[k]["mae"])
 
 
@@ -194,7 +201,7 @@ def main() -> None:  # pragma: no cover
     m = metrics(rows, a.ceiling)
     report.write_tables(m, a.out)
     figures.plot_all(m, a.out, a.ceiling)
-    report.sync_readme(Path("README.md"), (a.out / "results.md").read_text())
+    report.sync_results(Path("docs/RESULTS.md"), (a.out / "results.md").read_text())
     spec = disagreement.Spec(a.ceiling, a.top_disagreement)
     (a.out / "disagreement.md").write_text(disagreement.markdown(rows, m, spec))
     report.write_agreement(

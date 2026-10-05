@@ -7,13 +7,14 @@ All numbers are computed from `data/results.jsonl` by `analyze.py`; nothing here
 
 | metric             | meaning                                                                                                                          |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| **unscored**       | preprints with no parseable score in any of the 3 repeats. A configuration is **usable** when this is 0: a miss that a retry recovers costs a call, a preprint never scored is a blind spot. |
 | **cov%**           | calls that returned a parseable 0-1 score. Timeouts, bad JSON, and empty content count against it.                               |
 | **ladder**         | the parser ladder: % of all calls parseable as clean JSON (strict), as the first JSON object in the body (lenient, the headline cov%), and after `json_repair` fixes a trailing comma, control character or missing quote (repaired). The score is never repaired: no numeric `fit_score` in [0, 1] means uncovered on every rung. |
 | **strict%**        | of the covered calls, the share whose whole body was one clean JSON object (nothing before or after it). |
 | **wrong-field**    | calls on an off-lane preprint scored >= 0.5. Counts calls, not preprints: one preprint misjudged on all 3 repeats contributes 3. |
 | **sigma**          | mean per-preprint std dev across the 3 repeats. Repeatability.                                                                   |
-| **MAE vs ceiling** | mean over preprints of \|model mean - ceiling mean\|. Agreement with the frontier model. The bracket is a 95% bootstrap interval: the 90 preprints resampled with replacement 2,000 times (seed 0), percentile method. |
-| **P(<= best)**     | paired bootstrap against the best usable model (lowest MAE at >= 99% coverage): the share of those same 2,000 resamples in which this model's MAE is at or below the reference's. 1.00 for the reference itself; near 0 means the gap is real, near 0.5 means the two are not separable on 90 preprints. |
+| **MAE vs ceiling** | mean over the preprints the ceiling scored (86 of 90) of \|model mean - ceiling mean\|. Agreement with the frontier model. The bracket is a 95% bootstrap interval: those preprints resampled with replacement 2,000 times (seed 0), percentile method. |
+| **P(<= best)**     | paired bootstrap against the best usable model (lowest MAE with no preprint unscored): the share of those same 2,000 resamples in which this model's MAE is at or below the reference's. 1.00 for the reference itself; near 0 means the gap is real, near 0.5 means the two are not separable on these preprints. It is one-sided and the reference is the post-hoc best of the table, so read a value near 0.05 as a small edge, not a settled one. |
 | **rho**            | Spearman rank correlation between the model's and the ceiling's per-preprint mean scores. Scale-free, so it is the column on which derived rows (`baseline:`) are comparable. |
 | **kappa**          | Cohen's kappa between the model's and the ceiling's *decision* on each preprint (score >= 0.5), chance-corrected. 1.0 for the ceiling itself. |
 | **alpha**          | Krippendorff's alpha, two raters, scores binned to 0.1 with squared-bin-difference distance (what the cited implementation calls ordinal). n/a for the unscaled baseline. |
@@ -53,7 +54,8 @@ steadiest-sigma and best-top-10 usable models together; the three cheapest usabl
 the three lowest-MAE usable models from three different labs. There was deliberately no search
 over combinations. Picking the best of many ensembles on the same 90 preprints the table is
 scored on would be optimistic by construction, and even these three are post-hoc in the sense
-that the components were chosen from this table.
+that the components were chosen from this table. They were picked under the earlier usability
+rule (at least 99% of single calls scored) and stay as registered rather than re-picked.
 
 ## Chance-corrected agreement, by category
 
@@ -84,7 +86,7 @@ first probes to add.
 MAE says how far a model sits from the ceiling on average. It says nothing about *which*
 papers it gets wrong, and those are the ones worth a human's time. [`results/disagreement.md`](../results/disagreement.md)
 ranks the 90 preprints by the population std dev of the usable models' mean scores (the
-same >= 99% coverage set as the table, ceiling excluded), names the model at each extreme
+same usable set as the table, ceiling excluded), names the model at each extreme
 next to the ceiling's own score, and lists the mirror image: the preprints every model
 agrees on. Regenerate with `uv run python analyze.py --top-disagreement 10`.
 
@@ -117,17 +119,18 @@ agrees on. Regenerate with `uv run python analyze.py --top-disagreement 10`.
   return the cost of each call; `$/call` is the mean over calls that returned.
 - **The provider that served each call is recorded, and it matters.** A model id on
   OpenRouter is a routing decision, not a model: the same id is served by several
-  providers and they do not all honor the same parameters. In this run one provider
-  ignored `reasoning: {"enabled": false}` for MiniMax M3, emitted reasoning tokens
-  and returned `content: null` on every call it served, while two others honored it
-  and answered normally. `analyze.py` prints coverage per (model, provider) for
+  providers and they do not all behave the same way. In this run one provider returned
+  `content: null` for MiniMax M3 on every call it served and was the only one reporting
+  reasoning tokens. It looked like it was ignoring `reasoning: {"enabled": false}`, but a
+  control call with no reasoning parameter fails the same way: the answer was in another
+  field (next bullet). `analyze.py` prints coverage per (model, provider) for
   exactly this reason. Pin `provider: {"only": [...], "allow_fallbacks": false}` if
   you need a run to be reproducible.
 - **Read the answer out of whichever field it arrives in.** One provider (Parasail, serving
   minimax/minimax-m3) returns the completion in `message.reasoning` and leaves `message.content`
   null, with or without a `reasoning` parameter in the request. Reading only `content` booked 77
-  complete answers in this run as coverage failures and scored that model at 79.6% instead of
-  97.0%. `harness.unpack` now falls back to `reasoning` and records `content_field`.
+  complete answers across the two MiniMax M3 rows (49 reasoning off, 28 @low) as coverage
+  failures, and scored the reasoning-off row at 79.6% instead of 97.0%. `harness.unpack` now falls back to `reasoning` and records `content_field`.
 - **A parseable score is not clean JSON, so the parser is a ladder.** Claude Haiku 4.5 wrapped
   all 270 of its JSON-mode responses in a ` ```json ` markdown fence, so a bare `json.loads()`
   scores it at 0% coverage. `judge.parse` tries strict `json.loads`, then the first JSON object
