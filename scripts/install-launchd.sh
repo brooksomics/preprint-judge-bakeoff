@@ -5,13 +5,13 @@ set -euo pipefail
 
 REPO_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 LABEL="com.preprintjudge.intern"
-TEMPLATE="${REPO_PATH}/launchd/preprint-intern.plist.template"
+TEMPLATE="${REPO_PATH}/scripts/preprint-intern.plist.template"
 INSTALL_PATH="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 
 UV_PATH="$(command -v uv || true)"
 [[ -n "$UV_PATH" ]] || { echo "error: 'uv' not found in PATH" >&2; exit 1; }
 CREDS="${HOME}/.preprint-judge/credentials.json"
-[[ -f "$CREDS" ]] || { echo "error: $CREDS missing (see credentials.json.example)" >&2; exit 1; }
+[[ -f "$CREDS" ]] || { echo "error: $CREDS missing (see intern/credentials.json.example)" >&2; exit 1; }
 # launchd starts no shell, so nothing sources .env: the key has to be in the credentials file.
 # Checked by exit code so the value is never printed, echoed, or put in a process list.
 python3 -c 'import json,sys; sys.exit(0 if str(json.load(open(sys.argv[1])).get("openrouter_api_key","")).strip() else 1)' "$CREDS" \

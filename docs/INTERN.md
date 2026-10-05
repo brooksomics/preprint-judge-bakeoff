@@ -27,7 +27,7 @@ post a `### Title` line then a `URL:` line) and the title prefix that marks a pi
 ```bash
 uv run python -m intern --dry-run              # render the digest to stdout; sends nothing
 mkdir -p ~/.preprint-judge
-cp credentials.json.example ~/.preprint-judge/credentials.json   # Gmail fields + your OpenRouter key
+cp intern/credentials.json.example ~/.preprint-judge/credentials.json   # Gmail fields + your OpenRouter key
 chmod 600 ~/.preprint-judge/credentials.json
 ./scripts/install-launchd.sh                   # Thursday 14:00 weekly; biweekly enforced in code
 ```
