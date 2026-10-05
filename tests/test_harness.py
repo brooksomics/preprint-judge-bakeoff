@@ -1,7 +1,6 @@
 """Pins the request body the harness sends, including the json_schema strict mode."""
 
-import harness
-import judge
+from bakeoff import harness, judge
 
 
 def test_response_format_shapes():

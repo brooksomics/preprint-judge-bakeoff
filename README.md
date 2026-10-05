@@ -23,17 +23,20 @@ is why the intern runs it. The full table, and how to read it, is in
 ## What's here
 
 ```
-fetch_preprints.py   bioRxiv API -> data/preprints.json (60 in-lane, 30 deliberately off-lane); --server medrxiv
-judge.py             the one prompt every model sees, and the parser that decides coverage
-harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
-analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, docs/RESULTS.md sync
-probes.py            bias probes: does the judge reward long abstracts? (len rho column, flagged vs the ceiling)
-intern/              production run: 14 days of bioRxiv/medRxiv/arXiv -> hy3 -> break ties -> email top 5
-gate.py              PASS/FAIL exit-code gate for the re-run (thresholds on results.csv + live model-id check)
-agreement.py         chance-corrected agreement: kappa on the >= 0.5 decision, alpha over 0.1 bins, per-category verdicts
-disagreement.py      the preprints the usable models split on most -> results/disagreement.md
-baseline.py          zero-LLM control: tf-idf cosine(profile.md, title + abstract) as a derived row
-ensembles.py         median-of-3 cheap models as derived rows (pre-registered combos only)
+bakeoff/               the bake-off; run each step as `uv run python -m bakeoff.<name>`
+  fetch_preprints.py   bioRxiv API -> data/preprints.json (60 in-lane, 30 deliberately off-lane); --server medrxiv
+  judge.py             the one prompt every model sees, and the parser that decides coverage
+  harness.py           preprints x models x 3 repeats through OpenRouter JSON mode -> data/results.jsonl
+  analyze.py           metrics table (results/results.md + .csv), bootstrap CIs, two figures, docs/RESULTS.md sync
+  probes.py            bias probes: does the judge reward long abstracts? (len rho column, flagged vs the ceiling)
+  gate.py              PASS/FAIL exit-code gate for the re-run (thresholds on results.csv + live model-id check)
+  agreement.py         chance-corrected agreement: kappa on the >= 0.5 decision, alpha over 0.1 bins, per-category verdicts
+  disagreement.py      the preprints the usable models split on most -> results/disagreement.md
+  baseline.py          zero-LLM control: tf-idf cosine(profile.md, title + abstract) as a derived row
+  ensembles.py         median-of-3 cheap models as derived rows (pre-registered combos only)
+intern/                production run: 14 days of bioRxiv/medRxiv/arXiv -> hy3 -> break ties -> email top 5
+data/, results/        the published run (5,670 calls) and everything computed from it
+profile.md             the reading profile every judge scores against
 ```
 
 ## Quick start
@@ -41,7 +44,7 @@ ensembles.py         median-of-3 cheap models as derived rows (pre-registered co
 ```bash
 uv sync
 export OPENROUTER_API_KEY=...              # or put it in .env and `set -a; source .env`
-uv run python harness.py --smoke           # 2 preprints x 1 repeat per model: every id resolves
+uv run python -m bakeoff.harness --smoke   # 2 preprints x 1 repeat per model: every id resolves
 uv run python -m intern --dry-run          # today's digest to stdout; sends nothing
 ```
 

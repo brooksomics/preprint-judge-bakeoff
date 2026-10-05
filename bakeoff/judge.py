@@ -16,7 +16,7 @@ from pathlib import Path
 
 import json_repair
 
-PROFILE_PATH = Path(__file__).with_name("profile.md")
+PROFILE_PATH = Path(__file__).parent.parent / "profile.md"
 
 SYSTEM = """You triage preprints for one reader. Their reading profile is below.
 Score how well the preprint fits the profile.

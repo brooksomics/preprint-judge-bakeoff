@@ -5,8 +5,7 @@ import math
 
 import pytest
 
-import analyze
-import probes
+from bakeoff import analyze, probes
 
 
 def _by_item(pairs):

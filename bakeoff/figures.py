@@ -15,7 +15,7 @@ from pathlib import Path
 
 import matplotlib
 
-from analyze import DERIVED
+from bakeoff.analyze import DERIVED
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402

@@ -38,11 +38,7 @@ import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
-import agreement
-import bootstrap
-import judge
-import probes
-import rankstats
+from bakeoff import agreement, bootstrap, judge, probes, rankstats
 
 CEILING = "anthropic/claude-sonnet-5"
 COLUMNS = (
@@ -189,11 +185,7 @@ def _args() -> argparse.Namespace:
 
 
 def main() -> None:  # pragma: no cover
-    import baseline
-    import disagreement
-    import ensembles
-    import figures
-    import report
+    from bakeoff import baseline, disagreement, ensembles, figures, report
 
     a = _args()
     rows = load_rows(a.results, a.preprints) + baseline.rows(a.preprints, a.profile)

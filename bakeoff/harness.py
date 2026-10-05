@@ -21,7 +21,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-import judge
+from bakeoff import judge
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 CEILING = "anthropic/claude-sonnet-5"

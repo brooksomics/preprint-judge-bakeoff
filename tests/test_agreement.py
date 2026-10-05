@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-import agreement
+from bakeoff import agreement
 
 CEILING = "ceil"
 

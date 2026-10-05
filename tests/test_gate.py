@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import gate
+from bakeoff import gate
 
 ROW = {"label": "x/m", "unscored": "0", "mae_hi": "0.11", "top10": "6", "violations": "1"}
 ARGS = [

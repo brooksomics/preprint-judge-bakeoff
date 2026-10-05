@@ -5,8 +5,7 @@ import math
 
 import pytest
 
-import baseline
-import rankstats
+from bakeoff import baseline, rankstats
 
 
 def test_tokenize_lowercases_keeps_hyphens_digits_and_drops_short_tokens():

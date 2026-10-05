@@ -8,9 +8,8 @@ import statistics as st
 from collections import defaultdict
 from pathlib import Path
 
-import agreement
-import probes
-from analyze import CEILING, COLUMNS, SHORTLIST, VIOLATION_AT
+from bakeoff import agreement, probes
+from bakeoff.analyze import CEILING, COLUMNS, SHORTLIST, VIOLATION_AT
 
 MARK_START, MARK_END = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
 # _cells column -> whether the best is the min or the max, for bolding the winner. Never bolded:

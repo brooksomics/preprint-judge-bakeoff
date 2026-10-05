@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import analyze
-import bootstrap
+from bakeoff import analyze, bootstrap
 
 DATA = Path("data/results.jsonl")
 

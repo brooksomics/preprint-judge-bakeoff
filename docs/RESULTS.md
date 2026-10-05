@@ -1,6 +1,6 @@
 # Results
 
-The table is regenerated between the markers by `uv run python analyze.py`; the prose around it
+The table is regenerated between the markers by `uv run python -m bakeoff.analyze`; the prose around it
 is not. **Bold** marks the best value in each ranking column among the challengers, as printed
 (the ceiling and the zero-cost baseline don't compete); it is the best point estimate, not a
 significant win, which is what `P(<= best)` is for. Every column is defined in
@@ -71,7 +71,7 @@ the ceiling's own top ten (8/10) while ranking well below on MAE, which is why b
 here. The three models added on 2026-10-03 all land in the bottom third, and two of them do
 worse than the versions they replace (MiMo V2.6 Flash against V2.5, GPT-6 Luna against 5.6).
 
-Reproduce with `uv run python analyze.py` against `data/results.jsonl`.
+Reproduce with `uv run python -m bakeoff.analyze` against `data/results.jsonl`.
 
 <!-- RESULTS:END -->
 
