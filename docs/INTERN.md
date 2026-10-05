@@ -4,12 +4,12 @@
 it pulls every preprint first posted in the last two weeks to the in-lane categories of bioRxiv,
 medRxiv (`MED_IN_LANE`) and arXiv q-bio (GN, QM, BM, PE), about 950 papers, drops the DOIs it
 has already sent, scores each once (retrying a call that returns no score, up to twice) with
-the gate-approved model (`tencent/hy3`, reasoning off, seven to ten cents per run, measured),
+the gate-approved model (`tencent/hy3`, reasoning off, six to eight cents a pass, measured),
 and emails the top five to your own inbox over Gmail SMTP. The bioRxiv API is oldest-first with
 no sort option, so it pages the whole window rather
 than capping it: a cap would drop the newest days, and since windows abut, drop them for good.
 Hy3 scores coarsely (74 of 948 papers tied at 0.85 on 2026-10-02), so the group tied at the
-top-five cutoff is re-scored once by DeepSeek V4.1 Flash, about two cents; on that window it
+top-five cutoff is re-scored once by DeepSeek V4.1 Flash, a cent or two; on that window it
 lifted the mean ceiling score of the five picks from 0.69 (random tie-break) to 0.84, against
 0.88 for the ceiling itself. Whatever DeepSeek leaves tied goes, in order, to a corresponding
 author at an OpenAlex top-200 institution, then an abstract that names code or a public dataset,

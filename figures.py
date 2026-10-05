@@ -63,7 +63,7 @@ def _legend(ax, muted: bool = False, **kw) -> None:
     unusable = "leaves a preprint unscored in 3 tries: not usable"
     handles = [
         *([Line2D([], [], color=MUTED, mfc=SURFACE, label=unusable, **dot)] if muted else []),
-        Line2D([], [], color=BASE, label="reasoning off", **dot),
+        Line2D([], [], color=BASE, label="reasoning off (or provider default)", **dot),
         Line2D([], [], color=REASONING, label="reasoning on (@low / @medium)", **dot),
         Line2D([], [], color=SCHEMA, label="strict structured output (#schema)", **dot),
         Line2D([], [], color=BASE, mfc=SURFACE, label="derived row (ens: median of 3)", **dot),

@@ -14,7 +14,7 @@ write-up is
 [Calibrating a Cheap LLM Judge Against a Frontier Ceiling](https://www.bubbabrooks.info/blog/llm-judge-frontier-ceiling/).
 
 Short answer: `minimax/minimax-m3@low` agrees best with the ceiling (MAE 0.072), and
-`tencent/hy3` is the cheapest close second (MAE 0.088 at $0.00006 a call, 4.5 times less), which
+`tencent/hy3` is a close second (MAE 0.088 at $0.00006 a call, about four times less), which
 is why the intern runs it. The full table, and how to read it, is in
 [docs/RESULTS.md](docs/RESULTS.md).
 

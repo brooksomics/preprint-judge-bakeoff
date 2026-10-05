@@ -58,10 +58,11 @@ A configuration is usable when every preprint gets a score within its three repe
 scored is a blind spot, and the intern retries twice. Every challenger clears that bar; only the
 ceiling does not, with 4 preprints unscored on all three tries. `minimax/minimax-m3@low` has the
 lowest MAE, 0.072 [0.054, 0.092], and is the reference for the `P(<= best)` column. It fails
-3.7% of single calls (well-formed JSON with no `fit_score` key in it, across four providers),
+3.7% of single calls (well-formed JSON with no `fit_score` key in it, on two providers),
 but never twice on the same preprint. `tencent/hy3` is next among single models at 0.088 and
-costs 4.5 times less per call ($0.00006 against $0.00027); it matches or beats MiniMax in 4% of
-resamples, so on 90 preprints the gap looks real but small. Every other row sits at P <= 0.04.
+costs about 4.3 times less per call (measured means $0.0000628 against $0.0002708); it matches or
+beats MiniMax in 4% of resamples, but the paired interval on the gap, 0.015 [-0.002, 0.032],
+includes zero, and MiniMax is the post-hoc best of twenty: a small edge, not a settled one. Every other row sits at P <= 0.04.
 Among single models, `minimax/minimax-m3` and `deepseek/deepseek-v4.1-flash` matched the most of
 the ceiling's own top ten (8/10) while ranking well below on MAE, which is why both columns are
 here. The three models added on 2026-10-03 all land in the bottom third, and two of them do
